@@ -1,94 +1,85 @@
-# %%
-import pandas as pd
+"""Download Microsoft Global ML Building Footprints for one configured city.
+
+The previous prototype mixed projected UTM bounds with mercantile tile
+coordinates. This script keeps tile discovery and AOI filtering in EPSG:4326,
+then calculates footprint area in the city metric CRS.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
 import geopandas as gpd
-from shapely import geometry
 import mercantile
+import pandas as pd
+from shapely import geometry
+from shapely.ops import unary_union
 from tqdm import tqdm
-import os
-import tempfile
 
-# %%
-cities_used = gpd.read_file(
-    r"D:/Public Transport Study/Data/Boundaries/Boundaries.gpkg", layer="cities_used"
-)
-# Filter to Oslo, Norway
-cities_used = cities_used[cities_used["Name"] == "Stockholm, Sweden"]
-cities_used = cities_used.to_crs("EPSG:32633")
-print(cities_used.head())
+from urban_area.config import CityConfig
+from urban_area.io import load_city_boundary
 
-aoi_shape = cities_used.unary_union
-minx, miny, maxx, maxy = aoi_shape.bounds
-print(minx, miny, maxx, maxy)
+DATASET_LINKS_URL = "https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv"
 
-cities_used.explore()
 
-# %%
-quad_keys = set()
-for tile in list(mercantile.tiles(minx, miny, maxx, maxy, zooms=9)):
-    quad_keys.add(mercantile.quadkey(tile))
-quad_keys = list(quad_keys)
-print(f"The input area spans {len(quad_keys)} tiles: {quad_keys}")
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Download Microsoft building footprints for one city.")
+    parser.add_argument("--city", default="Stockholm, Sweden", help='City name, for example "Stockholm, Sweden".')
+    parser.add_argument("--zoom", type=int, default=9, help="Microsoft dataset quadkey zoom.")
+    parser.add_argument("--output-gpkg", type=Path, default=Path("./data/building_footprints.gpkg"))
+    parser.add_argument("--layer", help="Override output layer name.")
+    return parser.parse_args()
 
-# %%
-df = pd.read_csv(
-    "https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv",
-    dtype=str,
-)
-df.head()
 
-# %%
-idx = 0
-combined_gdf = gpd.GeoDataFrame()
-with tempfile.TemporaryDirectory() as tmpdir:
-    # Download the GeoJSON files for each tile that intersects the input geometry
-    tmp_fns = []
+def read_ms_tile(url: str) -> gpd.GeoDataFrame:
+    df = pd.read_json(url, lines=True)
+    df["geometry"] = df["geometry"].apply(geometry.shape)
+    return gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+
+
+def main() -> None:
+    args = parse_args()
+    config = CityConfig(city_name=args.city)
+    slug = config.resolved_slug()
+    layer = args.layer or f"{slug}_buildings"
+
+    city_boundary_metric, metric_crs = load_city_boundary(config)
+    aoi_wgs84 = unary_union(city_boundary_metric.to_crs("EPSG:4326").geometry)
+    west, south, east, north = aoi_wgs84.bounds
+    quad_keys = sorted({mercantile.quadkey(tile) for tile in mercantile.tiles(west, south, east, north, [args.zoom])})
+    print(f"{args.city}: {len(quad_keys)} Microsoft tiles at z{args.zoom}")
+
+    links = pd.read_csv(DATASET_LINKS_URL, dtype=str)
+    frames = []
     for quad_key in tqdm(quad_keys):
-        rows = df[df["QuadKey"] == quad_key]
-        if rows.shape[0] == 1:
-            url = rows.iloc[0]["Url"]
-
-            df2 = pd.read_json(url, lines=True)
-            df2["geometry"] = df2["geometry"].apply(geometry.shape)
-
-            gdf = gpd.GeoDataFrame(df2, crs=4326)
-            fn = os.path.join(tmpdir, f"{quad_key}.geojson")
-            tmp_fns.append(fn)
-            if not os.path.exists(fn):
-                gdf.to_file(fn, driver="GeoJSON")
-        elif rows.shape[0] > 1:
-            print(f"Multiple rows found for QuadKey: {quad_key}, using the first one.")
-            url = rows.iloc[0]["Url"]
-
-            df2 = pd.read_json(url, lines=True)
-            df2["geometry"] = df2["geometry"].apply(geometry.shape)
-
-            gdf = gpd.GeoDataFrame(df2, crs=4326)
-            fn = os.path.join(tmpdir, f"{quad_key}.geojson")
-            tmp_fns.append(fn)
-            if not os.path.exists(fn):
-                gdf.to_file(fn, driver="GeoJSON")
-        else:
-            print(f"QuadKey not found in dataset: {quad_key}, skipping.")
+        rows = links[links["QuadKey"] == quad_key]
+        if rows.empty:
+            print(f"QuadKey not found in dataset: {quad_key}")
             continue
+        url = rows.iloc[0]["Url"]
+        tile_gdf = read_ms_tile(url)
+        tile_gdf = tile_gdf[tile_gdf.geometry.notna() & tile_gdf.geometry.is_valid]
+        tile_gdf = tile_gdf[tile_gdf.geom_type.isin(["Polygon", "MultiPolygon"])]
+        tile_gdf = tile_gdf[tile_gdf.geometry.intersects(aoi_wgs84)].copy()
+        if tile_gdf.empty:
+            continue
+        frames.append(tile_gdf)
 
-    # Merge the GeoJSON files into a single file
-    for fn in tmp_fns:
-        gdf = gpd.read_file(fn)  # Read each file into a GeoDataFrame
-        gdf = gdf[gdf.geometry.within(aoi_shape)]  # Filter geometries within the AOI
-        gdf["id"] = range(idx, idx + len(gdf))  # Update 'id' based on idx
-        idx += len(gdf)
-        combined_gdf = pd.concat([combined_gdf, gdf], ignore_index=True)
+    if frames:
+        buildings = pd.concat(frames, ignore_index=True)
+        buildings = gpd.GeoDataFrame(buildings, geometry="geometry", crs="EPSG:4326")
+        buildings["_geom_key"] = buildings.geometry.apply(lambda geom: geom.wkb_hex)
+        buildings = buildings.drop_duplicates("_geom_key").drop(columns=["_geom_key"])
+        buildings_metric = buildings.to_crs(metric_crs)
+        buildings["area_sqm"] = buildings_metric.geometry.area
+    else:
+        buildings = gpd.GeoDataFrame(columns=["geometry", "area_sqm"], geometry="geometry", crs="EPSG:4326")
 
-# %%
-# combined_gdf.explore()
+    args.output_gpkg.parent.mkdir(parents=True, exist_ok=True)
+    buildings.to_file(args.output_gpkg, layer=layer, driver="GPKG")
+    print(f"Saved {len(buildings):,} footprint polygons to {args.output_gpkg}/{layer}")
 
-# Write to building_footprints geopackage
-combined_gdf.to_file(
-    "./data/building_footprints.gpkg",
-    layer="building_footprints_stockholm",
-    driver="GPKG",
-)
 
-# %%
-combined_gdf.size()
-# %%
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,50 @@
+{
+  "cities": {
+    "Oslo, Norway": {
+      "city_slug": "oslo",
+      "metric_crs": "EPSG:25833",
+      "analysis_envelope_buffer_m": 0,
+      "building_mode": "footprint",
+      "growth": {
+        "strictness": "medium",
+        "use_multi_seed": true,
+        "min_seed_cluster_size": 2,
+        "water_guard": true,
+        "keep_largest_component": true,
+        "min_component_population": 0,
+        "min_component_area_sqkm": 0,
+        "min_component_built_up_area_sqm": 0
+      },
+      "refinement": {
+        "enabled": true,
+        "subdivision_factor": 4,
+        "min_building_area_sqm": 600,
+        "min_road_density_km_per_sqkm": 3.0,
+        "require_local_presence": true
+      }
+    },
+    "Stockholm, Sweden": {
+      "city_slug": "stockholm",
+      "metric_crs": "EPSG:3006",
+      "analysis_envelope_buffer_m": 0,
+      "building_mode": "auto",
+      "growth": {
+        "strictness": "medium",
+        "use_multi_seed": true,
+        "min_seed_cluster_size": 2,
+        "water_guard": true,
+        "keep_largest_component": true,
+        "min_component_population": 0,
+        "min_component_area_sqkm": 0,
+        "min_component_built_up_area_sqm": 0
+      },
+      "refinement": {
+        "enabled": true,
+        "subdivision_factor": 4,
+        "min_building_area_sqm": 600,
+        "min_road_density_km_per_sqkm": 3.0,
+        "require_local_presence": true
+      }
+    }
+  }
+}

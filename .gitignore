@@ -3,4 +3,7 @@
 /cache/
 /.github/
 /.vnev/
+/.venv/
+__pycache__/
+.pytest_cache/
 Workspace.code-workspace

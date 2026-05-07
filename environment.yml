@@ -1,0 +1,24 @@
+name: pt_study
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - geopandas
+  - osmnx
+  - pandas
+  - numpy
+  - shapely
+  - fiona
+  - folium
+  - scikit-learn
+  - scipy
+  - matplotlib
+  - networkx
+  - pyarrow
+  - polars
+  - mercantile
+  - tqdm
+  - overpy
+  - jupyterlab
+  - ipykernel
+  - pytest
