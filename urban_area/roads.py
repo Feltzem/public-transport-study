@@ -6,7 +6,8 @@ import geopandas as gpd
 import pandas as pd
 
 from .config import LOCAL_URBAN_FABRIC_ROAD_VALUES, MAJOR_TRANSPORT_ROAD_VALUES
-from .schemas import LINE_TYPES
+from .geometry import vectorized_overlay_measure
+from .schemas import LINE_TYPES, POLYGON_TYPES
 
 
 def _first_highway_value(value) -> str | None:
@@ -45,10 +46,16 @@ def normalize_roads(
     local_values: list[str] | None = None,
     major_values: list[str] | None = None,
 ) -> gpd.GeoDataFrame:
-    """Filter roads to line geometries, project them, and calculate length."""
+    """Convert OSM road features to linework, project, and calculate length."""
     if roads.crs != target_crs:
         roads = roads.to_crs(target_crs)
-    result = roads[roads.geometry.notna() & roads.geometry.is_valid & roads.geom_type.isin(LINE_TYPES)].copy()
+    result = roads[roads.geometry.notna() & roads.geometry.is_valid].copy()
+    polygon_mask = result.geom_type.isin(POLYGON_TYPES)
+    if polygon_mask.any():
+        # OSMnx represents some closed highway ways (for example roundabouts)
+        # as polygons. Their boundary is the line signal needed here.
+        result.loc[polygon_mask, "geometry"] = result.loc[polygon_mask].geometry.boundary
+    result = result[result.geom_type.isin(LINE_TYPES)].copy()
     if result.empty:
         result["length_m"] = []
         result["road_role"] = []
@@ -115,51 +122,29 @@ def aggregate_roads_to_cells(
         result["major_road_density_km_per_sqkm"] = 0.0
         return result
 
-    joined = gpd.sjoin(
-        roads_work[["road_id", "geometry"]],
-        result[[cell_id_col, "geometry"]],
-        how="inner",
-        predicate="intersects",
+    pairs = vectorized_overlay_measure(
+        roads_work,
+        result,
+        feature_id_col="road_id",
+        zone_id_col=cell_id_col,
+        measure="length",
     )
-    if not joined.empty:
-        stats = []
-        cell_geom = result.set_index(cell_id_col).geometry
-        for cell_id, group in joined.groupby(cell_id_col):
-            geom = cell_geom.loc[cell_id]
-            total_length = 0.0
-            local_length = 0.0
-            major_length = 0.0
-            ids = set()
-            local_ids = set()
-            major_ids = set()
-            for _, row in group.iterrows():
-                rgeom = roads_work.loc[row["road_id"], "geometry"]
-                try:
-                    clipped = rgeom.intersection(geom)
-                    length = clipped.length
-                    total_length += length
-                    ids.add(row["road_id"])
-                    role = roads_work.loc[row["road_id"], "road_role"]
-                    if role == "major_transport":
-                        major_length += length
-                        major_ids.add(row["road_id"])
-                    elif role == "local_urban_fabric":
-                        local_length += length
-                        local_ids.add(row["road_id"])
-                except Exception:
-                    continue
-            stats.append(
-                {
-                    cell_id_col: cell_id,
-                    "total_road_length_m": total_length,
-                    "local_road_length_m": local_length,
-                    "major_road_length_m": major_length,
-                    "road_segment_count": len(ids),
-                    "local_road_segment_count": len(local_ids),
-                    "major_road_segment_count": len(major_ids),
-                }
+    if not pairs.empty:
+        pairs["road_role"] = pairs["road_id"].map(roads_work.set_index("road_id")["road_role"])
+        stats_df = pairs.groupby(cell_id_col, as_index=False).agg(
+            total_road_length_m=("intersection_measure", "sum"),
+            road_segment_count=("road_id", "nunique"),
+        )
+        for role, length_col, count_col in [
+            ("local_urban_fabric", "local_road_length_m", "local_road_segment_count"),
+            ("major_transport", "major_road_length_m", "major_road_segment_count"),
+        ]:
+            role_stats = (
+                pairs[pairs["road_role"] == role]
+                .groupby(cell_id_col, as_index=False)
+                .agg(**{length_col: ("intersection_measure", "sum"), count_col: ("road_id", "nunique")})
             )
-        stats_df = pd.DataFrame(stats)
+            stats_df = stats_df.merge(role_stats, on=cell_id_col, how="left")
         result = result.drop(
             columns=[
                 "total_road_length_m",

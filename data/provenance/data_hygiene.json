@@ -1,0 +1,43 @@
+{
+  "cities_study_count": 6,
+  "cities_study": [
+    {
+      "Name": "Brussels, Belgium",
+      "city_slug": "brussels"
+    },
+    {
+      "Name": "Copenhagen, Denmark",
+      "city_slug": "copenhagen"
+    },
+    {
+      "Name": "Helsinki, Finland",
+      "city_slug": "helsinki"
+    },
+    {
+      "Name": "Oslo, Norway",
+      "city_slug": "oslo"
+    },
+    {
+      "Name": "Paris, France",
+      "city_slug": "paris"
+    },
+    {
+      "Name": "Stockholm, Sweden",
+      "city_slug": "stockholm"
+    }
+  ],
+  "population_bbox_feature_counts": {
+    "brussels": 1314,
+    "copenhagen": 4618,
+    "helsinki": 2320,
+    "oslo": 2450,
+    "paris": 8734,
+    "stockholm": 5894
+  },
+  "population_canonical_file": "D:\\Public Transport Study\\Code\\data\\population_density.gpkg",
+  "population_canonical_layer": "population_density_cities_used",
+  "oslo_buildings_source_crs": "EPSG:27393",
+  "oslo_buildings_crs": "EPSG:25833",
+  "oslo_building_count": 319285,
+  "archived_corrupt_transport_outputs": true
+}

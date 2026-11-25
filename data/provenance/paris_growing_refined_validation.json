@@ -1,0 +1,179 @@
+{
+  "components": {
+    "component_areas_sqkm": [
+      1057.4063418706912,
+      0.6059745269895507
+    ],
+    "component_count": 2
+  },
+  "contracts": {
+    "analysis_cells": {
+      "errors": [],
+      "info": {
+        "crs": "EPSG:2154",
+        "geometry_type_counts": {
+          "Polygon": 8721
+        }
+      },
+      "name": "analysis_cells",
+      "ok": true,
+      "warnings": []
+    },
+    "buildings": {
+      "errors": [],
+      "info": {
+        "geometry_type_counts": {
+          "Polygon": 1574440
+        }
+      },
+      "name": "buildings",
+      "ok": true,
+      "warnings": []
+    },
+    "population_cells": {
+      "errors": [],
+      "info": {
+        "crs": "EPSG:2154",
+        "geometry_type_counts": {
+          "Polygon": 8721
+        },
+        "total_population": 11727827.277154768
+      },
+      "name": "population_cells",
+      "ok": true,
+      "warnings": []
+    },
+    "roads": {
+      "errors": [],
+      "info": {
+        "geometry_type_counts": {
+          "MultiLineString": 900534
+        }
+      },
+      "name": "roads",
+      "ok": true,
+      "warnings": []
+    }
+  },
+  "distributions": {
+    "building_coverage": {
+      "max": 0.7112439482780553,
+      "mean": 0.06779358355198913,
+      "median": 0.02475224351120099,
+      "min": 0.0,
+      "p05": 3.086375874487501e-05,
+      "p95": 0.24434915561899476
+    },
+    "building_point_density_per_sqkm": {
+      "max": 0.0,
+      "mean": 0.0,
+      "median": 0.0,
+      "min": 0.0,
+      "p05": 0.0,
+      "p95": 0.0
+    },
+    "built_up_coverage": {
+      "max": 0.7112439482780553,
+      "mean": 0.06779358355198913,
+      "median": 0.02475224351120099,
+      "min": 0.0,
+      "p05": 3.086375874487501e-05,
+      "p95": 0.24434915561899476
+    },
+    "local_road_density_km_per_sqkm": {
+      "max": 52.481527566895146,
+      "mean": 7.806525966744031,
+      "median": 4.4611206028355825,
+      "min": 0.0,
+      "p05": 0.0,
+      "p95": 22.462122422861647
+    },
+    "major_road_density_km_per_sqkm": {
+      "max": 13.582576472122037,
+      "mean": 0.407532555050937,
+      "median": 0.0,
+      "min": 0.0,
+      "p05": 0.0,
+      "p95": 3.1400888232474564
+    },
+    "population_density": {
+      "max": 46210.8919881789,
+      "mean": 2046.473661135171,
+      "median": 334.0114871310774,
+      "min": 1.4972495339809062,
+      "p05": 3.0368645647846355,
+      "p95": 8940.467882823581
+    },
+    "road_density_km_per_sqkm": {
+      "max": 136.1226783641741,
+      "mean": 14.63489421518556,
+      "median": 9.442260220208691,
+      "min": 0.0,
+      "p05": 0.0,
+      "p95": 41.42890123799381
+    },
+    "urban_score_base": {
+      "max": 1.0,
+      "mean": 0.22358301898863708,
+      "median": 0.07683041232387385,
+      "min": 0.0,
+      "p05": 0.0015823267329806215,
+      "p95": 0.9106100084426378
+    }
+  },
+  "holes": {
+    "hole_area_sqkm": 53.51348681898833,
+    "hole_count": 2546
+  },
+  "road_length_check": {
+    "aggregated_road_length_km": 83461.1728696624,
+    "aggregated_to_source_ratio": 0.8895714263040466,
+    "source_road_length_km": 93821.77799530199
+  },
+  "sensitivity": {
+    "loose": {
+      "components": {
+        "component_areas_sqkm": [
+          1481.7226020849023
+        ],
+        "component_count": 1
+      },
+      "urban_area_sqkm": 1481.7226020849023,
+      "urban_cell_count": 2251,
+      "urban_population": 9825364.525726907
+    },
+    "medium": {
+      "components": {
+        "component_areas_sqkm": [
+          1188.9739357293877
+        ],
+        "component_count": 1
+      },
+      "urban_area_sqkm": 1188.9739357293877,
+      "urban_cell_count": 1804,
+      "urban_population": 9039166.0
+    },
+    "strict": {
+      "components": {
+        "component_areas_sqkm": [
+          998.4082892346258
+        ],
+        "component_count": 1
+      },
+      "urban_area_sqkm": 998.4082892346258,
+      "urban_cell_count": 1515,
+      "urban_population": 8560404.0
+    }
+  },
+  "summary": {
+    "analysis_area_sqkm": 5649.316017875971,
+    "analysis_cell_count": 8721,
+    "building_mode": "footprint",
+    "total_population": 11727827.277154768,
+    "urban_area_share": 0.18728148913069162,
+    "urban_area_sqkm": 1058.0123163976807,
+    "urban_cell_count": 10007,
+    "urban_population": 8608894.650843758,
+    "urban_population_share": 0.734057080428995
+  }
+}

@@ -47,10 +47,14 @@ def _hole_stats(geom) -> dict[str, float | int]:
     return {"hole_count": int(hole_count), "hole_area_sqkm": float(hole_area / 1_000_000)}
 
 
-def component_summary(cells: gpd.GeoDataFrame) -> dict[str, Any]:
+def component_summary(
+    cells: gpd.GeoDataFrame,
+    adjacency: dict[int, set[int]] | None = None,
+) -> dict[str, Any]:
     if cells.empty:
         return {"component_count": 0, "component_areas_sqkm": []}
-    adjacency = build_adjacency_graph(cells, id_col="cell_id", mode="edge")
+    if adjacency is None:
+        adjacency = build_adjacency_graph(cells, id_col="cell_id", mode="edge")
     work = cells.copy()
     work["component"] = component_labels(work, adjacency, id_col="cell_id")
     areas = (work.groupby("component").geometry.apply(lambda s: s.area.sum()) / 1_000_000).sort_values(ascending=False)
@@ -60,32 +64,63 @@ def component_summary(cells: gpd.GeoDataFrame) -> dict[str, Any]:
     }
 
 
-def sensitivity_summary(analysis_cells: gpd.GeoDataFrame, growth_kwargs: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Run unrefined strictness sensitivity checks for validation/provenance."""
+def sensitivity_summary(
+    analysis_cells: gpd.GeoDataFrame,
+    growth=None,
+    adjacency: dict[int, set[int]] | None = None,
+    centre_point=None,
+) -> dict[str, Any]:
+    """Run unrefined sensitivity checks for validation/provenance.
+
+    DEGURBA runs vary the urban-centre density threshold; the legacy score
+    method varies its strictness preset.
+    """
     if analysis_cells.empty:
         return {}
-    from .growth import run_growing_method
+    from dataclasses import replace
 
-    base_kwargs = dict(growth_kwargs or {})
+    from .config import GrowthConfig
+    from .growth import detect_urban_cells
+
+    growth = growth or GrowthConfig()
+    if adjacency is None:
+        adjacency = build_adjacency_graph(analysis_cells, id_col="cell_id", mode="edge")
+    if growth.method == "degurba":
+        variants = {
+            f"centre_density_{int(value)}": replace(growth, centre_density_min=value)
+            for value in [1200.0, 1500.0, 2000.0]
+        }
+    else:
+        variants = {strictness: replace(growth, strictness=strictness) for strictness in ["strict", "medium", "loose"]}
     summary: dict[str, Any] = {}
-    for strictness in ["strict", "medium", "loose"]:
+    for name, variant in variants.items():
         try:
-            cells = run_growing_method(
-                analysis_cells,
-                urban_strictness=strictness,
-                **base_kwargs,
-            )
+            _, cells = detect_urban_cells(analysis_cells, variant, adjacency=adjacency, centre_point=centre_point)
             pop = float(cells["population"].sum()) if "population" in cells else 0.0
             area = float(cells.geometry.area.sum() / 1_000_000) if not cells.empty else 0.0
-            summary[strictness] = {
+            summary[name] = {
                 "urban_cell_count": int(len(cells)),
                 "urban_population": pop,
                 "urban_area_sqkm": area,
-                "components": component_summary(cells),
+                "components": component_summary(cells, adjacency=adjacency),
             }
         except Exception as exc:
-            summary[strictness] = {"error": str(exc)}
+            summary[name] = {"error": str(exc)}
     return summary
+
+
+def _degurba_class_summary(analysis_cells: gpd.GeoDataFrame) -> dict[str, Any]:
+    if "degurba_class" not in analysis_cells:
+        return {}
+    grouped = analysis_cells.groupby("degurba_class")
+    return {
+        str(name): {
+            "cell_count": int(len(group)),
+            "population": float(group["population"].sum()),
+            "area_sqkm": float(group.geometry.area.sum() / 1_000_000),
+        }
+        for name, group in grouped
+    }
 
 
 def build_validation_report(
@@ -98,7 +133,10 @@ def build_validation_report(
     building_mode: str,
     source_road_length_m: float | None = None,
     building_warnings: list[str] | None = None,
-    growth_kwargs: dict[str, Any] | None = None,
+    growth=None,
+    centre_point=None,
+    analysis_adjacency: dict[int, set[int]] | None = None,
+    urban_adjacency: dict[int, set[int]] | None = None,
 ) -> dict[str, Any]:
     unioned = clean_union(urban_cells)
     total_pop = float(analysis_cells["population"].sum()) if "population" in analysis_cells else math.nan
@@ -125,7 +163,7 @@ def build_validation_report(
             "urban_area_sqkm": urban_area_sqkm,
             "urban_area_share": float(urban_area_sqkm / analysis_area_sqkm) if analysis_area_sqkm else None,
         },
-        "components": component_summary(urban_cells),
+        "components": component_summary(urban_cells, adjacency=urban_adjacency),
         "holes": _hole_stats(unioned),
         "distributions": {
             "building_coverage": _series_summary(analysis_cells.get("building_coverage", pd.Series(dtype=float))),
@@ -145,7 +183,13 @@ def build_validation_report(
             ),
             "urban_score_base": _series_summary(analysis_cells.get("urban_score_base", pd.Series(dtype=float))),
         },
-        "sensitivity": sensitivity_summary(analysis_cells, growth_kwargs=growth_kwargs),
+        "degurba_classes": _degurba_class_summary(analysis_cells),
+        "sensitivity": sensitivity_summary(
+            analysis_cells,
+            growth=growth,
+            adjacency=analysis_adjacency,
+            centre_point=centre_point,
+        ),
         "road_length_check": {
             "source_road_length_km": float(source_road_length_m / 1000) if source_road_length_m is not None else None,
             "aggregated_road_length_km": float(agg_road_length_m / 1000),

@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import geopandas as gpd
-import pandas as pd
 
+from .geometry import vectorized_overlay_measure
 from .schemas import POINT_TYPES, POLYGON_TYPES
 
 
@@ -108,34 +108,18 @@ def aggregate_buildings_to_cells(
             raise ValueError("Building mode resolved to footprint, but no valid footprints remain after filtering")
         footprints = footprints.reset_index(drop=True)
         footprints["building_id"] = footprints.index
-        joined = gpd.sjoin(
-            footprints[["building_id", "geometry"]],
-            cells_work[[cell_id_col, "geometry"]],
-            how="inner",
-            predicate="intersects",
+        pairs = vectorized_overlay_measure(
+            footprints,
+            cells_work,
+            feature_id_col="building_id",
+            zone_id_col=cell_id_col,
+            measure="area",
         )
-        if not joined.empty:
-            stats = []
-            cell_geom = cells_work.set_index(cell_id_col).geometry
-            for cell_id, group in joined.groupby(cell_id_col):
-                geom = cell_geom.loc[cell_id]
-                total_area = 0.0
-                ids = set()
-                for _, row in group.iterrows():
-                    bgeom = footprints.loc[row["building_id"], "geometry"]
-                    try:
-                        total_area += bgeom.intersection(geom).area
-                        ids.add(row["building_id"])
-                    except Exception:
-                        continue
-                stats.append(
-                    {
-                        cell_id_col: cell_id,
-                        "total_building_area_sqm": total_area,
-                        "building_count": len(ids),
-                    }
-                )
-            stats_df = pd.DataFrame(stats)
+        if not pairs.empty:
+            stats_df = pairs.groupby(cell_id_col, as_index=False).agg(
+                total_building_area_sqm=("intersection_measure", "sum"),
+                building_count=("building_id", "nunique"),
+            )
             result = result.drop(columns=["total_building_area_sqm", "building_count"]).merge(
                 stats_df, on=cell_id_col, how="left"
             )

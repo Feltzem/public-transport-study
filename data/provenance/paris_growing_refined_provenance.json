@@ -1,0 +1,122 @@
+{
+  "building_mode": "footprint",
+  "building_source_geometry_types": {
+    "Polygon": 1574440
+  },
+  "building_warnings": [],
+  "city_name": "Paris, France",
+  "city_slug": "paris",
+  "config": {
+    "analysis_envelope_buffer_m": 0.0,
+    "boundaries_layer": "cities_study",
+    "boundaries_path": "D:\\Public Transport Study\\Input Data\\Boundaries\\Boundaries.gpkg",
+    "building_gpkg": "data\\building_footprints.gpkg",
+    "building_layer": null,
+    "building_mode": "footprint",
+    "city_name": "Paris, France",
+    "city_slug": "paris",
+    "data_dir": "data",
+    "growth": {
+      "keep_largest_component": true,
+      "min_component_area_sqkm": 0.0,
+      "min_component_built_up_area_sqm": 0.0,
+      "min_component_population": 0.0,
+      "min_seed_cluster_size": 2,
+      "strictness": "medium",
+      "use_multi_seed": true,
+      "water_guard": true
+    },
+    "local_road_values": [
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential",
+      "living_street",
+      "primary_link",
+      "secondary_link",
+      "tertiary_link",
+      "service"
+    ],
+    "major_road_values": [
+      "motorway",
+      "trunk",
+      "motorway_link",
+      "trunk_link"
+    ],
+    "metric_crs": "EPSG:2154",
+    "population_gpkg": "data\\population_density.gpkg",
+    "population_layer": "population_density_cities_used",
+    "refinement": {
+      "enabled": true,
+      "min_building_area_sqm": 600,
+      "min_road_density_km_per_sqkm": 3.0,
+      "require_local_presence": true,
+      "subdivision_factor": 4
+    },
+    "road_gpkg": "data\\road_networks.gpkg",
+    "road_layer": null,
+    "road_tags": {
+      "highway": [
+        "motorway",
+        "trunk",
+        "motorway_link",
+        "trunk_link",
+        "primary",
+        "secondary",
+        "tertiary",
+        "unclassified",
+        "residential",
+        "living_street",
+        "primary_link",
+        "secondary_link",
+        "tertiary_link",
+        "service"
+      ]
+    },
+    "urban_areas_gpkg": "data\\urban_areas.gpkg",
+    "water_mask": {
+      "coastline_buffer_m": 25,
+      "enabled": true,
+      "exclusion_fraction": 0.5,
+      "water_gpkg": "data\\water_masks.gpkg",
+      "water_layer": null
+    }
+  },
+  "metric_crs": "EPSG:2154",
+  "outputs": {
+    "analysis_layer": "population_density_with_buildings_roads_paris",
+    "urban_cells_method": "growing_refined"
+  },
+  "road_signal": {
+    "local_urban_fabric_roads": [
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential",
+      "living_street",
+      "primary_link",
+      "secondary_link",
+      "tertiary_link",
+      "service"
+    ],
+    "major_transport_roads_diagnostic_only": [
+      "motorway",
+      "trunk",
+      "motorway_link",
+      "trunk_link"
+    ],
+    "scoring_column": "local_road_density_km_per_sqkm"
+  },
+  "run_started_at_utc": "2026-08-09T07:54:54.988570+00:00",
+  "station_filtering_note": "Use catchment population/intersection logic, not station point-in-polygon tests",
+  "urban_area_type": "morphological_built_up_area",
+  "water_mask": {
+    "enabled": true,
+    "hard_exclusion_fraction": 0.5,
+    "layer": "water_mask_paris",
+    "published_geometry_clipped": true
+  },
+  "written_at_utc": "2026-08-09T07:54:56.370881+00:00"
+}

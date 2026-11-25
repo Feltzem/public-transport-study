@@ -70,7 +70,19 @@ def _has_finite_bounds(geom) -> bool:
 def load_population_cells(config: CityConfig, city_boundary_metric: gpd.GeoDataFrame, metric_crs: str) -> gpd.GeoDataFrame:
     """Load and clip population cells, then project them before metrics."""
     require_layer(config.population_gpkg, config.population_layer)
-    population = gpd.read_file(config.population_gpkg, layer=config.population_layer)
+    with fiona.open(config.population_gpkg, layer=config.population_layer) as source:
+        population_crs = source.crs_wkt or source.crs
+    bbox_boundary = city_boundary_metric.to_crs(population_crs)
+    bbox = tuple(float(value) for value in bbox_boundary.total_bounds)
+    try:
+        population = gpd.read_file(
+            config.population_gpkg,
+            layer=config.population_layer,
+            bbox=bbox,
+            engine="pyogrio",
+        )
+    except (ImportError, ValueError):
+        population = gpd.read_file(config.population_gpkg, layer=config.population_layer, bbox=bbox)
     population = population.to_crs(metric_crs)
     population = population[population.geometry.notna() & ~population.geometry.is_empty].copy()
     population = population[population.geometry.apply(_has_finite_bounds)].copy()

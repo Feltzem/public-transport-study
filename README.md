@@ -1,12 +1,14 @@
 # Public Transport Study
 
+Open the [interactive visual methods guide](README.html) for a browser-based walkthrough of urban-area growth, walking catchments, GTFS frequency, travel-time accessibility, publishing, and validation.
+
 This repository processes urban, population, street, building, and public transport data for cities around the world. The current urban-area workflow first identifies a **morphological built-up urban area**: a contiguous area of urban fabric based on population density, building evidence, and local street fabric. That area is then used as a defensible population denominator and spatial frame for public transport coverage analysis.
 
 The built-up area is not the same thing as a public transport service area. Stations and catchments should be evaluated with walking-catchment population logic, not by simply checking whether a station point lies inside the built-up polygon.
 
 ## Project Overview
 
-The workflow has three main parts:
+The workflow has six main parts:
 
 1. **Data preparation**
    - Population grid cells, currently expected as polygon cells with a `population` column.
@@ -23,10 +25,25 @@ The workflow has three main parts:
    - Refine boundary cells into smaller subcells and allocate population dasymetrically where possible.
    - Write urban cells, a dissolved urban boundary, enriched analysis cells, validation, and provenance.
 
-3. **Public transport catchment analysis**
-   - Use the morphological built-up area as the denominator and urban population mask.
+3. **Public transport catchment analysis** (`calc_transport.py`)
+   - Build rail, metro and tram stations from GTFS parent stations served on a pinned school-term service date.
+   - Use the urban area as the denominator and urban population mask.
    - Keep stations based on walking-catchment population/intersection criteria.
    - Dissolve station catchments before calculating total covered population to avoid double counting.
+
+4. **GTFS service frequency and all-mode tier** (also `calc_transport.py`)
+   - Count departures per hour in the busiest direction, 07:00–09:00, excluding each trip's final stop.
+   - "Frequent" means at least six departures per hour in that direction (a 10-minute headway).
+   - Add an all-mode tier (bus, tram, metro, rail, ferry): population within 500 m of any stop, and within reach of frequent service of any mode.
+
+5. **Door-to-door travel time** (`calc_gtfs.py`)
+   - Build an r5py network from each city OSM PBF and GTFS feed set.
+   - Route population-cell centroids to the city centre and, by default in the batch run, to all other cells.
+   - Report population-weighted centre travel times, 30/45-minute centre shares, and cumulative accessibility: the population-weighted share of all urban residents reachable within 30/45 minutes.
+
+6. **Publication**
+   - Harmonise all city schemas in equal-area EPSG:3035.
+   - Atomically publish `Output/pt_study.gpkg` and `Output/city_summary.csv` for ArcGIS Pro and the report.
 
 ## Urban Area Concepts
 
@@ -42,9 +59,14 @@ These are deliberately separated. A station can sit outside the built-up polygon
 | File | Purpose |
 | --- | --- |
 | `calc_urban_area.py` | Command-line runner for the reusable urban-area pipeline. Prefer this for production-style runs. |
+| `calc_transport.py` | OSM rail, walk-network isochrone, station-filtering, and weighted-coverage runner. |
+| `calc_gtfs.py` | GTFS frequency and optional r5py travel-time runner. |
+| `run_study.py` | Resumable six-city stage runner with config/code fingerprints, per-city logs, and timings. |
+| `publish_outputs.py` | Atomic EPSG:3035 publisher for the consolidated ArcGIS GeoPackage and summary CSV. |
+| `README.html` | Self-contained interactive visual walkthrough of the full process. |
 | `calc_urban_area.ipynb` | Thin notebook entry point plus older exploratory diagnostics. The top cells call `run_urban_area_pipeline`; package code is the source of truth. |
 | `urban_area/` | Reusable implementation for config, I/O, scoring, growth, refinement, validation, and catchment helpers. |
-| `city_config.example.json` | Example city-specific settings for Oslo and Stockholm. |
+| `city_config.example.json` | Six-city settings for Oslo, Stockholm, Copenhagen, Helsinki, Brussels, and Paris. |
 | `tests/test_urban_area_units.py` | Synthetic geospatial unit tests for the key edge cases. |
 | `get_ms_buildings.py` | Downloads Microsoft Global ML Building Footprints for a configured city. |
 | `road-density.py` | Standalone road-density aggregation using the shared CRS and clipping logic. |
@@ -71,7 +93,7 @@ For notebook use, register the environment as a kernel:
 python -m ipykernel install --user --name pt_study --display-name "pt_study"
 ```
 
-Core geospatial dependencies include GeoPandas, Shapely, Fiona, OSMnx, pandas, NumPy, SciPy, Folium, Mercantile, and pytest.
+Core geospatial dependencies include GeoPandas, Pyogrio, Shapely, Fiona, OSMnx, pandas, NumPy, SciPy, Folium, Mercantile, r5py, and pytest. Travel-time routing requires JDK 21; `environment.yml` installs the matching OpenJDK package.
 
 ## Running The Urban-Area Workflow
 
@@ -96,6 +118,17 @@ python calc_urban_area.py --city "Oslo, Norway" --config city_config.example.jso
 
 The script prints the metric CRS, building mode, urban cell count, urban area, urban population share, and output paths when saving is enabled.
 
+Run the downstream stages or the full resumable study:
+
+```powershell
+python calc_transport.py --city "Oslo, Norway" --config city_config.example.json
+python calc_gtfs.py --city "Oslo, Norway" --config city_config.example.json --all-to-all
+python run_study.py --cities all --stage all
+python publish_outputs.py
+```
+
+Stockholm requires `TRAFIKLAB_API_KEY`. Brussels requires `STIB_GTFS_URL` and `DELIJN_GTFS_URL`; Paris requires `IDFM_GTFS_URL`. These environment variables keep credentials and provider-generated download URLs out of version control.
+
 ## Configuration
 
 City configuration is loaded with `load_city_config()` from a JSON file. The example file contains a `cities` mapping keyed by full city name.
@@ -111,8 +144,14 @@ Important settings:
 | `building_gpkg`, `building_layer` | Building footprint or point-building input. Default layer name is `{slug}_buildings`. |
 | `road_gpkg`, `road_layer` | Road/street input. Default layer name is `{slug}_roads`. |
 | `building_mode` | `auto`, `footprint`, `point`, or `required_footprint`. |
-| `growth.strictness` | `strict`, `medium`, or `loose` parameter set. |
-| `growth.keep_largest_component` | If `true`, keep only the largest component. If `false`, retain components meeting configured population, area, or built-up-area thresholds. |
+| `centre_lon`, `centre_lat` | City-centre point: selects the study urban centre and is the travel-time destination. |
+| `growth.method` | `degurba` (default, absolute thresholds) or `score` (legacy). |
+| `growth.centre_density_min`, `growth.builtup_share_min`, `growth.centre_min_population` | DEGURBA urban-centre thresholds. |
+| `growth.keep_other_centres` | Also keep urban centres that do not contain the city-centre point. |
+| `growth.strictness`, `growth.keep_largest_component` | Legacy score-method settings. |
+| `water_mask.min_land_fraction` | Cells with less land than this and no buildings are treated as water. |
+| `gtfs.service_date`, `gtfs.window`, `gtfs.frequent_dep_per_hr` | Pinned representative date (outside school holidays), departure window, and frequency threshold. |
+| `transport.bus_walking_distance_m` | Walking distance for the all-mode stop tier (default 500 m). |
 | `refinement.enabled` | Enables edge-cell subdivision and refined boundary output. |
 
 The default road query includes both major transport roads and local urban-fabric roads. Major transport roads are retained for diagnostics but not used as the morphology road score.
@@ -131,7 +170,7 @@ All metric calculations must run in a projected city CRS, not EPSG:4326 or EPSG:
 
 Current implementation notes:
 
-- Explicit water, land-use, park, airport, forest, or undeveloped-land masks are **not currently implemented** in the package. The growth `water_guard` prevents expansion through cells with negligible population and building signal, but it is not a true water/land-use mask.
+- OSM water polygons, a narrow coastline buffer, and sea polygons derived from coastline direction are cached per city. Densities use land area, near-total water cells without buildings are excluded, and published geometry is clipped to land without reducing population. Park, airport, forest, and other undeveloped-land masks are not currently implemented.
 - Intersection density is **not currently calculated**. Local street density is the implemented street-fabric signal.
 - Building footprints may be sourced from Microsoft Global ML Building Footprints via `get_ms_buildings.py`, OSM, or another prepared GeoPackage layer.
 
@@ -169,39 +208,35 @@ The package records `population_allocation_method` and `population_allocation_we
 
 ## Urban Metrics
 
-`add_urban_metrics()` derives the main per-cell scoring fields:
+`add_absolute_metrics()` derives per-cell fields that do not depend on other cells; `add_urban_metrics()` adds the legacy percentile-normalised diagnostics on top.
 
 | Field | Meaning |
 | --- | --- |
 | `cell_area_sqm`, `cell_area_sqkm` | Projected cell area. |
-| `population_density` | Population per square kilometre. Used for `pop_norm`. |
+| `land_area_sqm`, `water_fraction` | Land and water share from the water mask. |
+| `population_density` | Population per square kilometre of **land**. |
 | `building_area_sqm` / `total_building_area_sqm` | Intersected building footprint area in the cell. |
-| `built_up_coverage` / `building_coverage` | Building footprint area divided by cell area. |
-| `building_count` | Count of unique footprint polygons or building points, depending on mode. |
-| `building_point_count` | Point-building count for point fallback mode. |
-| `building_point_density_per_sqkm` | Point fallback density. |
-| `building_signal_type` | `footprint_area`, `point_fallback`, or `none`. |
-| `building_signal_confidence` | `1.0` for footprints, `0.5` for point fallback, `0.0` for no signal. |
-| `road_density_km_per_sqkm` | All road length per square kilometre. Diagnostic. |
-| `local_road_density_km_per_sqkm` | Local urban-fabric road length per square kilometre. Used for `road_norm`. |
-| `major_road_density_km_per_sqkm` | Motorway/trunk diagnostic density. Not used as the morphology road score. |
+| `built_up_coverage` / `building_coverage` | Footprint area divided by land area. |
+| `local_road_density_km_per_sqkm` | Local urban-fabric road length per square kilometre. Used by edge refinement. |
+| `major_road_density_km_per_sqkm` | Motorway/trunk diagnostic density. |
+| `degurba_class` | `urban_centre`, `urban_cluster`, or `rural`. |
+| `in_study_area` | Cell belongs to the urban centre containing the configured city-centre point. |
+| `pop_norm`, `building_signal_norm`, `road_norm`, `urban_score_base` | Legacy diagnostics, robust min-max scaled between the 5th and 95th percentiles **of the analysis envelope**. Kept on analysis cells only; they are not comparable across cities. |
 
-Normalised fields are robust min-max scaled between the 5th and 95th percentiles:
+## Urban Classification (DEGURBA-style)
 
-- `pop_norm` from `population_density`;
-- `bldg_cov_norm` from `built_up_coverage`;
-- `bldg_point_norm` from `building_point_density_per_sqkm`;
-- `road_norm` from `local_road_density_km_per_sqkm` when available.
+`growth.method = "degurba"` (the default) adapts the Degree of Urbanisation to the Kontur H3 resolution-8 cells (`urban_area/degurba.py`):
 
-The base score is:
+1. A cell qualifies for an urban centre when its land population density is at least `centre_density_min` (1,500/km²), or its footprint built-up share is at least `builtup_share_min` (0.20).
+2. Edge-adjacent qualifying cells form clusters. Clusters with at least `centre_min_population` (50,000) residents become urban centres.
+3. Gaps are filled iteratively: a non-water cell with at least `gap_fill_min_neighbors` (4 of 6) neighbours in a centre joins it.
+4. Enclosed non-water holes up to `max_hole_area_sqkm` (15 km²) are filled.
+5. Other cells of at least `cluster_density_min` (300/km²) in contiguous groups of at least `cluster_min_population` (5,000) become urban clusters.
+6. The study area is the urban centre containing `centre_lon`/`centre_lat` (all centres if `keep_other_centres`).
 
-```text
-urban_score_base = 0.52 * pop_norm
-                 + 0.43 * building_signal_norm
-                 + 0.05 * road_norm
-```
+The thresholds are absolute, so the same rule applies in every city regardless of envelope size. The GHSL built-up rule uses 50% built-up surface, but footprint coverage measures much less than built-up surface, so the 0.20 default is a calibration choice. H3 r8 cells (about 0.74 km²) are smaller than the 1 km² DEGURBA grid, which makes density thresholds slightly stricter. Validation reruns the classification at 1,200, 1,500, and 2,000/km².
 
-For point-building fallback, `building_signal_norm` is downweighted by `building_signal_confidence`.
+`growth.method = "score"` keeps the legacy percentile-normalised region growing (below) for regression comparison.
 
 ## Building Data Handling
 
@@ -229,7 +264,7 @@ Roads are classified by OSM `highway` value:
 
 All roads remain available in `road_density_km_per_sqkm` and length diagnostics, but only local urban-fabric roads feed `road_norm`. Road-only cells cannot seed the urban area and motorways/trunks cannot independently create built-up urban cells.
 
-## Scoring And Seed Selection
+## Legacy Score Method: Seed Selection
 
 `growth.py` defines three strictness presets: `strict`, `medium`, and `loose`. Each preset controls:
 
@@ -241,7 +276,7 @@ All roads remain available in `road_density_km_per_sqkm` and length diagnostics,
 
 Seed clusters are selected from high `urban_score_base` cells above the configured quantile, but cells must have positive score and some population or building evidence. If no valid seeds exist, the algorithm returns an empty urban area rather than treating road-only or zero-evidence cells as urban.
 
-## Region Growth
+## Legacy Score Method: Region Growth
 
 `run_growing_method()` performs multi-seed breadth-first growth over an adjacency graph.
 
@@ -256,6 +291,12 @@ A neighbouring cell can be added if it satisfies one of these pathways:
 This lets low-resident but clearly built-up places, such as CBDs, industrial areas, universities, hospitals, airports, or employment zones, qualify when building evidence is strong. At the same time, road false positives are controlled because the supporting road signal is local-street density and road-only cells are not valid seeds.
 
 The `water_guard` option blocks growth through cells with negligible population and building signal. It is a guardrail, not a substitute for a proper water/land-use mask.
+
+### Water handling
+
+OSM holds the sea only as coastline lines (land on the left), so `sea_polygons_from_coastline()` cuts the envelope along the coastline and votes each piece sea or land from probe points either side of the coastline; truncated coastlines fall back to land. Only polygons carrying a water tag count as water: closed coastline rings are islands, and land-tagged member ways of water relations (lake islands) stay land. The cached layer is `water_mask_v3_{slug}`.
+
+The water mask annotates `land_area_sqm` on every cell before metrics are calculated, so densities and coverage are measured on land. A cell is flagged `is_water` only when less than `min_land_fraction` (10%) of it is land and it has under 100 m² of buildings. Published cells are clipped to land, but **population and building area are not scaled by the clip**, because residents and buildings are already on the land part of the cell. The earlier rule (hard-excluding any cell at least 50% water and area-scaling population on clip) removed more than 13,000 Oslo residents on the waterfront.
 
 After growth, enclosed holes with some population or building evidence can be filled. Component handling then either:
 
@@ -299,6 +340,55 @@ Typical station-filtering logic should be:
 
 ## Outputs
 
+### Revised Oslo run (2026-10-18)
+
+Oslo has been re-run with DEGURBA classification, land-area densities with sea polygons, GTFS-built stations, per-direction frequency, and the all-mode tier. The other five cities still hold the earlier score-method results (flagged `score_legacy` in `city_summary.csv`) and must be re-run before comparison.
+
+| Oslo measure | Earlier (2026-08-09) | Revised |
+| --- | ---: | ---: |
+| Urban area (km²) | 244.72 | 191.30 |
+| Urban population | 792,054 | 714,052 |
+| Rail, metro, and tram stations | 305 | 205 (99 metro, 72 tram, 34 rail) |
+| Within 15 min walk of a station | 58.59%* | 63.84% |
+| Within 15 min of a frequent station (≥6/h busiest direction) | 42.86%* | 53.49% |
+| Within 500 m walk of any stop | – | 72.16% |
+| Frequent service of any mode | – | 70.79% |
+| Median PT time to centre / within 45 min | – | 35 min / 82.9% |
+| Urban residents reachable in 30 / 45 min (average resident) | – | 9.0% / 33.9% |
+
+\* Computed on the pre-water-mask urban population (804,250), with all tram stops at zero departures.
+
+Runtimes on cached inputs: urban 1.3 min, transport 8.8 min (the 211 catchments take seconds with scipy), travel time 9.1 min including the one-off clipped-feed preparation and the all-to-all matrix.
+
+### Water-masked six-city run (2026-08-09, superseded for Oslo)
+
+The final cached urban pass completed all six cities in 863.2 seconds (14m 23s). Timings exclude the one-off Microsoft-footprint and Geofabrik PBF downloads.
+
+| City | Runtime | Urban area (km²) | Urban population | Urban share | Published urban cells |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Stockholm | 108.7 s | 317.68 | 1,362,317 | 63.70% | 4,492 |
+| Copenhagen | 136.6 s | 260.71 | 1,490,353 | 59.50% | 2,550 |
+| Helsinki | 174.5 s | 311.84 | 815,055 | 79.39% | 4,386 |
+| Brussels | 38.2 s | 173.13 | 1,314,822 | 74.94% | 2,311 |
+| Paris | 311.1 s | 1,058.01 | 8,608,895 | 73.41% | 10,007 |
+| Oslo | 94.1 s | 244.72 | 792,054 | 82.26% | 3,431 |
+
+These are the water-masked results. The earlier Oslo no-water regression gate remains 251.10 km², 804,251 people, and 83.5%; it is retained as a code-performance regression, not the current published result.
+
+The principal working and published files are:
+
+| Purpose | Path |
+| --- | --- |
+| Six-city urban cells and boundaries | `data/urban_areas.gpkg` |
+| Per-city OSM water masks | `data/water_masks.gpkg` |
+| Per-city normalized road linework | `data/road_networks.gpkg` |
+| Exact final urban timings | `data/logs/timing_summary.csv` |
+| Per-city run state, provenance, and validation | `data/provenance/` |
+| ArcGIS-facing consolidated layers (EPSG:3035) | `../Output/pt_study.gpkg` |
+| Six-city comparison table | `../Output/city_summary.csv` |
+
+For Oslo specifically, the final cached urban stage takes about 1m34s. The first uncached transport/catchment build took about 2h08m including its checkpoint resume; the cached GTFS frequency stage took about 3m31s. Oslo's weighted 15-minute coverage is 58.59%, and frequent-service coverage is 42.86%.
+
 When `write_outputs = true`, `save_pipeline_outputs()` writes:
 
 | Output | Location / naming |
@@ -309,6 +399,8 @@ When `write_outputs = true`, `save_pipeline_outputs()` writes:
 | Dissolved urban boundary | `urban_areas.gpkg` layer `urban_area_{slug}_{method}` |
 | Provenance JSON | `data/provenance/{slug}_{method}_provenance.json` |
 | Validation JSON | `data/provenance/{slug}_{method}_validation.json` |
+
+Transport stages additionally write city-suffixed rail/station layers, 15-minute isochrones, coverage cells, GTFS/travel-time Parquet files, and stage-specific provenance/validation JSON. `publish_outputs.py` consolidates the final six-city contract into `Output/pt_study.gpkg`.
 
 `method` is `growing_refined` when refinement is enabled and `growing` otherwise. The boundary output is a dissolved union of selected cells, even though the function name is `hull_from_cells()`.
 
@@ -350,7 +442,7 @@ The synthetic test suite currently covers:
 - dissolved catchment coverage avoiding double counting;
 - station filtering with catchment population and share denominators.
 
-For research validation, compare outputs against external references where available, such as GHSL/DEGURBA-style built-up classifications, OECD Functional Urban Areas, national urban-area datasets, or manually reviewed city boundaries. Those comparisons are not automated in the package yet.
+For research validation, compare outputs against external references where available, such as GHSL/DEGURBA-style built-up classifications, OECD Functional Urban Areas, national urban-area datasets, or manually reviewed city boundaries. `benchmark_ghsl.py` automates the GHSL comparison once the benchmark layer is supplied; the other comparisons remain manual.
 
 ## Script And Notebook Notes
 
@@ -358,8 +450,8 @@ For research validation, compare outputs against external references where avail
 - `calc_urban_area.ipynb` starts with a thin call to the package and then keeps older exploratory mapping/diagnostic cells. Treat the package as the source of truth.
 - `road-density.py` is useful when you only need road aggregation using the same CRS/clipping assumptions.
 - `get_ms_buildings.py` uses WGS84 tile bounds for Microsoft building downloads, filters by the city AOI, then calculates footprint area in the city metric CRS.
-- `model_census.ipynb` is exploratory work toward commuting/FUA-style analysis and may be relevant for future functional/service area definitions.
-- `get_metro_data.ipynb` handles OSM rail/station data collection and downstream transport network inputs.
+- `model_census.ipynb`, `get_metro_data.ipynb`, and `osm_experiments.ipynb` are retained under `../Archive/notebooks/` as historical references.
+- `transport/` is the source of truth for OSM rail/station, isochrone, GTFS, and r5py analysis; the regenerated Oslo transport gate was completed on 2026-08-09.
 
 ## Data Directory
 
@@ -368,10 +460,13 @@ The repository expects processed data under `./data/` by default:
 - `population_density.gpkg`;
 - `building_footprints.gpkg`;
 - `road_networks.gpkg`;
+- `water_masks.gpkg`;
 - `urban_areas.gpkg`;
 - `rail_lines.gpkg`;
 - `station_isochrones.gpkg`;
 - `walking_networks.gpkg`;
+- `data/osm/{slug}.osm.pbf`;
+- `data/logs/timing_summary.csv`;
 - `data/provenance/`.
 
 The default city boundary path in `CityConfig` is:
@@ -386,7 +481,7 @@ Override paths in `city_config.example.json` or by constructing `CityConfig` dir
 
 - Building data completeness varies by city. Footprints are preferred; point-only fallback is lower confidence and should be treated cautiously.
 - OSM road tagging quality varies. Major roads are diagnostic only, but local street density can still be sparse or inconsistent in some regions.
-- No explicit water, land-use, park, forest, airport, or undeveloped masks are currently applied. The implemented `water_guard` only blocks growth through cells with negligible population and building signal.
+- The water mask derives the sea from coastline direction inside each envelope; where a coastline is truncated by the extract, that stretch of sea falls back to land. Other undeveloped-land masks remain future work.
 - Intersection density is not implemented yet.
 - Edge-cell population allocation is best when residential building-use tags or complete footprint data exist. Without building evidence, refined cells fall back to area weighting.
 - The morphological built-up area is not a commuting or service region. Use catchment logic, and eventually FUA/commuting data, for functional public transport service interpretation.

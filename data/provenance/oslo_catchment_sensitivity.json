@@ -1,0 +1,49 @@
+{
+  "city": "Oslo, Norway",
+  "rows": [
+    {
+      "buffer_m": 25.0,
+      "pct_covered": 63.85065119063725,
+      "seconds": 65,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125.0
+    },
+    {
+      "buffer_m": 25.0,
+      "pct_covered": 72.16268365920942,
+      "seconds": 80,
+      "tier": "any_stop",
+      "walk_distance_m": 500.0
+    },
+    {
+      "buffer_m": 50.0,
+      "pct_covered": 74.3591446754763,
+      "seconds": 44,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125.0
+    },
+    {
+      "buffer_m": 50.0,
+      "pct_covered": 85.49483368417467,
+      "seconds": 63,
+      "tier": "any_stop",
+      "walk_distance_m": 500.0
+    },
+    {
+      "buffer_m": 100.0,
+      "pct_covered": 79.336983821084,
+      "seconds": 40,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125.0
+    },
+    {
+      "buffer_m": 100.0,
+      "pct_covered": 92.77336453496794,
+      "seconds": 51,
+      "tier": "any_stop",
+      "walk_distance_m": 500.0
+    }
+  ],
+  "urban_population": 714051.6448375051,
+  "written_at_utc": "2026-10-18T08:25:12.055488+00:00"
+}

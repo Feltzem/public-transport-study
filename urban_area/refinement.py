@@ -9,9 +9,9 @@ import pandas as pd
 from shapely.geometry import Polygon
 
 from .buildings import aggregate_buildings_to_cells
-from .geometry import build_adjacency_graph, component_labels
+from .geometry import build_adjacency_graph, component_labels, vectorized_overlay_measure
 from .growth import _components_to_keep
-from .metrics import add_urban_metrics
+from .metrics import NORMALISED_SCORE_COLUMNS, add_absolute_metrics
 from .roads import aggregate_roads_to_cells
 from .schemas import POINT_TYPES, POLYGON_TYPES
 
@@ -88,24 +88,17 @@ def _polygon_area_weights(features: gpd.GeoDataFrame, subcells: gpd.GeoDataFrame
         return weights
     polygons = polygons.reset_index(drop=True)
     polygons["_feature_id"] = polygons.index
-    joined = gpd.sjoin(
-        polygons[["_feature_id", "geometry"]],
-        subcells[["cell_id", "geometry"]],
-        how="inner",
-        predicate="intersects",
+    pairs = vectorized_overlay_measure(
+        polygons,
+        subcells,
+        feature_id_col="_feature_id",
+        zone_id_col="cell_id",
+        measure="area",
     )
-    if joined.empty:
+    if pairs.empty:
         return weights
-    cell_geom = subcells.set_index("cell_id").geometry
-    for cell_id, group in joined.groupby("cell_id"):
-        geom = cell_geom.loc[cell_id]
-        total = 0.0
-        for _, row in group.iterrows():
-            try:
-                total += polygons.loc[row["_feature_id"], "geometry"].intersection(geom).area
-            except Exception:
-                continue
-        weights.loc[cell_id] = total
+    totals = pairs.groupby("cell_id")["intersection_measure"].sum()
+    weights.loc[totals.index] = totals
     return weights
 
 
@@ -193,6 +186,7 @@ def refine_urban_edges(
     min_road_density_km_per_sqkm: float = 3.0,
     require_local_presence: bool = True,
     adjacency_mode: str = "edge",
+    adjacency: dict[int, set[int]] | None = None,
     local_road_values: list[str] | None = None,
     major_road_values: list[str] | None = None,
     keep_largest_component: bool = True,
@@ -210,7 +204,8 @@ def refine_urban_edges(
     if "cell_id" not in analysis.columns:
         analysis["cell_id"] = range(len(analysis))
 
-    adjacency = build_adjacency_graph(analysis, id_col="cell_id", mode=adjacency_mode)
+    if adjacency is None:
+        adjacency = build_adjacency_graph(analysis, id_col="cell_id", mode=adjacency_mode)
     urban_ids = set(urban["cell_id"])
     edge_ids = [
         cid for cid in urban_ids
@@ -316,4 +311,7 @@ def refine_urban_edges(
 
     refined = refined.drop(columns=["component"], errors="ignore").reset_index(drop=True)
     refined["cell_id"] = range(len(refined))
-    return add_urban_metrics(refined, building_mode=building_mode)
+    # Percentile-normalised scores are only meaningful across the whole
+    # analysis envelope, so they are not recomputed on the urban subset.
+    refined = refined.drop(columns=NORMALISED_SCORE_COLUMNS, errors="ignore")
+    return add_absolute_metrics(refined, building_mode=building_mode)

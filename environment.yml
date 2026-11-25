@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - geopandas
+  - pyogrio
   - osmnx
   - pandas
   - numpy
@@ -22,3 +23,6 @@ dependencies:
   - jupyterlab
   - ipykernel
   - pytest
+  - r5py
+  - openjdk=21
+  - osmium-tool

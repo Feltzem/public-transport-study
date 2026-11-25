@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive methods guide for the six-city Public Transport Study.">
+  <title>Public Transport Study · Interactive Methods Guide</title>
+  <style>
+    :root {
+      --ink: #102a34;
+      --muted: #5d7077;
+      --paper: #f6f3ec;
+      --panel: rgba(255,255,255,.82);
+      --line: #d8ddd8;
+      --teal: #087f78;
+      --teal-soft: #d9efeb;
+      --orange: #e67e3c;
+      --orange-soft: #fae6d8;
+      --blue: #2671a7;
+      --blue-soft: #dcebf5;
+      --navy: #0b303c;
+      --shadow: 0 18px 45px rgba(19,52,61,.11);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% -5%, rgba(8,127,120,.13), transparent 30rem),
+        radial-gradient(circle at 94% 5%, rgba(230,126,60,.13), transparent 28rem),
+        var(--paper);
+      font: 16px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, select, input { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--teal); }
+    a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(230,126,60,.55); outline-offset: 3px;
+    }
+    .shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      border-bottom: 1px solid rgba(16,42,52,.1);
+      background: rgba(246,243,236,.9); backdrop-filter: blur(16px);
+    }
+    .topbar .shell { display: flex; align-items: center; justify-content: space-between; min-height: 64px; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); font-weight: 800; letter-spacing: -.02em; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--teal) 0 38%, var(--orange) 38% 61%, var(--blue) 61%); box-shadow: inset 0 0 0 7px var(--paper); }
+    nav { display: flex; gap: 18px; }
+    nav a { color: var(--muted); text-decoration: none; font-size: .9rem; font-weight: 700; }
+    nav a:hover { color: var(--ink); }
+    .hero { padding: 88px 0 58px; }
+    .eyebrow { color: var(--teal); font-size: .78rem; font-weight: 900; text-transform: uppercase; letter-spacing: .16em; }
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; line-height: 1.08; letter-spacing: -.025em; }
+    h1 { max-width: 850px; margin: 14px 0 18px; font-size: clamp(3rem, 7vw, 6.4rem); font-weight: 500; }
+    h1 em { color: var(--teal); font-weight: inherit; }
+    .lede { max-width: 760px; color: var(--muted); font-size: clamp(1.08rem, 2vw, 1.3rem); }
+    .hero-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 36px; align-items: end; }
+    .hero-card { padding: 28px; border: 1px solid rgba(16,42,52,.12); border-radius: var(--radius); background: var(--navy); color: white; box-shadow: var(--shadow); transform: rotate(1.2deg); }
+    .hero-card strong { display: block; font: 500 4.5rem/1 Georgia, serif; color: #79d3c9; }
+    .hero-card span { color: #cfe1e4; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+    .metric { padding: 9px 13px; border: 1px solid rgba(16,42,52,.13); border-radius: 999px; background: rgba(255,255,255,.58); font-size: .86rem; font-weight: 750; }
+    section { padding: 58px 0; }
+    .section-head { display: grid; grid-template-columns: .7fr 1.3fr; gap: 40px; align-items: end; margin-bottom: 30px; }
+    h2 { margin: 4px 0 0; font-size: clamp(2.2rem, 4.5vw, 4rem); font-weight: 500; }
+    .section-head p { color: var(--muted); margin: 0; max-width: 680px; }
+    .panel { border: 1px solid rgba(16,42,52,.12); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+    .pipeline { padding: 24px; overflow: hidden; }
+    .pipeline-track { display: grid; grid-template-columns: repeat(7, minmax(112px,1fr)); gap: 9px; position: relative; }
+    .stage {
+      min-height: 122px; padding: 16px 12px; text-align: left; cursor: pointer;
+      border: 1px solid var(--line); border-radius: 17px; background: white; transition: .2s ease;
+    }
+    .stage:hover { transform: translateY(-3px); border-color: var(--teal); }
+    .stage[aria-selected="true"] { color: white; background: var(--navy); border-color: var(--navy); transform: translateY(-3px); }
+    .stage .number { display: block; color: var(--orange); font-size: .72rem; font-weight: 900; letter-spacing: .12em; }
+    .stage strong { display: block; margin-top: 8px; font-size: .93rem; line-height: 1.25; }
+    .stage small { display: block; margin-top: 7px; color: var(--muted); line-height: 1.25; }
+    .stage[aria-selected="true"] small { color: #c5dadd; }
+    .stage.is-playing { animation: pulse 1s ease; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(230,126,60,.22); } }
+    .play-row { display: flex; justify-content: flex-end; margin: 14px 0; }
+    .button { border: 0; border-radius: 999px; padding: 10px 16px; background: var(--teal); color: white; cursor: pointer; font-weight: 800; }
+    .button.secondary { background: white; color: var(--ink); border: 1px solid var(--line); }
+    .stage-detail { display: grid; grid-template-columns: 1.15fr .85fr; gap: 24px; margin-top: 8px; padding: 28px; border-radius: 18px; background: #fff; border: 1px solid var(--line); }
+    .stage-detail h3 { margin: 0 0 8px; font-size: 2rem; font-weight: 500; }
+    .stage-detail p { color: var(--muted); }
+    .io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .io-card { padding: 16px; border-radius: 14px; background: var(--teal-soft); }
+    .io-card.output { background: var(--orange-soft); }
+    .io-card b { display: block; margin-bottom: 5px; font-size: .72rem; text-transform: uppercase; letter-spacing: .11em; }
+    code { padding: .15em .38em; border-radius: 6px; background: rgba(16,42,52,.07); color: #154758; font-family: "Cascadia Code", Consolas, monospace; font-size: .84em; }
+    .gate { margin-top: 15px; padding: 14px 16px; border-left: 4px solid var(--teal); background: #eef6f3; border-radius: 0 12px 12px 0; }
+    .visual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .diagram { padding: 26px; min-height: 390px; }
+    .diagram h3 { margin: 0 0 4px; font-size: 1.7rem; font-weight: 500; }
+    .diagram > p { color: var(--muted); margin-top: 4px; }
+    .hex-map { display: grid; grid-template-columns: repeat(6, 42px); gap: 5px; justify-content: center; margin: 34px auto 22px; transform: rotate(30deg); }
+    .hex { width: 42px; aspect-ratio: 1; border-radius: 12px; background: #e2e7e4; transition: .35s; }
+    .hex:nth-child(3n) { transform: translateY(23px); }
+    .urban-on .hex[data-score="high"] { background: var(--orange); }
+    .urban-on .hex[data-score="mid"] { background: #f0bd79; }
+    .water-on .hex[data-water="true"] { background: var(--blue); opacity: .75; }
+    .legend { display: flex; gap: 14px; justify-content: center; color: var(--muted); font-size: .78rem; }
+    .dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: currentColor; }
+    .control-row { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+    .mini-button { padding: 7px 11px; cursor: pointer; border: 1px solid var(--line); border-radius: 999px; background: white; font-size: .8rem; font-weight: 800; }
+    .mini-button.active { color: white; background: var(--navy); border-color: var(--navy); }
+    .catchment-viz { position: relative; height: 230px; margin-top: 26px; overflow: hidden; border-radius: 18px; background: linear-gradient(145deg,#e7ece8,#f8f6f1); }
+    .street { position: absolute; height: 5px; background: white; box-shadow: 0 0 0 1px #d1d8d3; transform-origin: left; }
+    .street.one { width: 110%; left: -5%; top: 49%; transform: rotate(-9deg); }
+    .street.two { width: 80%; left: 17%; top: 55%; transform: rotate(64deg); }
+    .street.three { width: 75%; left: 10%; top: 30%; transform: rotate(24deg); }
+    .catchment { position: absolute; left: 50%; top: 50%; width: 168px; height: 142px; transform: translate(-50%,-50%); border-radius: 54% 46% 60% 40%; background: rgba(8,127,120,.2); border: 2px solid rgba(8,127,120,.5); animation: breathe 3.6s ease-in-out infinite; }
+    @keyframes breathe { 50% { transform: translate(-50%,-50%) scale(1.04); } }
+    .station-dot { position: absolute; left: 50%; top: 50%; width: 17px; height: 17px; transform: translate(-50%,-50%); border-radius: 50%; background: var(--navy); box-shadow: 0 0 0 6px white; }
+    .building { position: absolute; width: 13px; height: 13px; border-radius: 3px; background: var(--orange); }
+    .timeline { margin-top: 25px; }
+    .time-label { display: flex; justify-content: space-between; font-weight: 800; }
+    input[type="range"] { width: 100%; accent-color: var(--teal); }
+    .trip { display: grid; grid-template-columns: 1fr 1.4fr 3fr 1fr; gap: 4px; margin-top: 18px; }
+    .trip span { padding: 13px 8px; text-align: center; border-radius: 10px; color: white; font-size: .76rem; font-weight: 850; }
+    .walk { background: var(--orange); } .wait { background: #8f9da1; } .ride { background: var(--teal); } .egress { background: var(--blue); }
+    .city-tabs { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 18px; }
+    .city-tab { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 9px 14px; cursor: pointer; font-weight: 800; }
+    .city-tab.active { background: var(--navy); color: white; }
+    .city-panel { display: grid; grid-template-columns: .75fr 1.25fr; gap: 26px; padding: 28px; }
+    .city-panel h3 { margin: 0 0 8px; font-size: 2.4rem; font-weight: 500; }
+    .city-facts { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+    .fact { min-height: 88px; padding: 14px; border-radius: 14px; background: #f1f3ef; }
+    .fact b { display: block; font-size: 1.25rem; }
+    .fact span { color: var(--muted); font-size: .78rem; }
+    .status { display: inline-flex; gap: 7px; align-items: center; padding: 6px 10px; border-radius: 999px; background: var(--teal-soft); color: #075e59; font-size: .77rem; font-weight: 850; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+    .command-builder { display: grid; grid-template-columns: .7fr .7fr auto; gap: 12px; align-items: end; padding: 25px; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 800; }
+    select { width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+    .command { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border-radius: 13px; background: var(--navy); color: #d8eeee; overflow: auto; }
+    .command code { color: inherit; background: transparent; white-space: nowrap; }
+    .command button { flex: none; border: 1px solid #58757d; color: white; background: transparent; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+    .architecture { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .arch { padding: 20px; }
+    .arch h3 { margin: 0 0 12px; font-size: 1.3rem; font-weight: 600; }
+    .arch ul { margin: 0; padding-left: 19px; color: var(--muted); }
+    .arch li + li { margin-top: 7px; }
+    .artifact-link { text-decoration: none; border-bottom: 1px dotted currentColor; }
+    footer { margin-top: 50px; padding: 45px 0; color: #c8d7da; background: var(--navy); }
+    footer .shell { display: flex; justify-content: space-between; gap: 30px; }
+    @media (max-width: 900px) {
+      nav { display: none; }
+      .hero-grid, .section-head, .stage-detail, .visual-grid, .city-panel { grid-template-columns: 1fr; }
+      .pipeline-track { grid-template-columns: repeat(2,1fr); }
+      .architecture { grid-template-columns: 1fr; }
+      .command-builder { grid-template-columns: 1fr; }
+      .command { grid-column: 1; }
+    }
+    @media (max-width: 540px) {
+      .shell { width: min(100% - 22px,1180px); }
+      .hero { padding-top: 58px; }
+      .pipeline-track, .city-facts { grid-template-columns: 1fr; }
+      .stage { min-height: auto; }
+      .io-grid { grid-template-columns: 1fr; }
+      footer .shell { display: block; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell">
+      <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>PT Study / Methods</a>
+      <nav aria-label="Page sections">
+        <a href="#pipeline">Pipeline</a><a href="#methods">Methods</a><a href="#cities">Cities</a><a href="#run">Run it</a><a href="#architecture">Files</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">Interactive repository guide · 2026 pipeline</div>
+          <h1>From urban fabric to <em>door-to-door access.</em></h1>
+          <p class="lede">This study builds comparable urban boundaries, measures who can walk to rail, adds scheduled service frequency, and routes a typical weekday morning through the public-transport network.</p>
+          <div class="metrics" aria-label="Study constants">
+            <span class="metric">6 urban runs complete</span><span class="metric">15 min / 1,125 m walk</span><span class="metric">07:00–09:00 weekday window</span><span class="metric">EPSG:3035 publication</span>
+          </div>
+        </div>
+        <aside class="hero-card" aria-label="Study scope">
+          <strong>6 × 7</strong>
+          <span>cities moving through seven reproducible stages—from source data to a consolidated ArcGIS GeoPackage and report.</span>
+        </aside>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <div class="shell">
+        <div class="section-head"><div><div class="eyebrow">01 · Pipeline</div><h2>One chain of evidence.</h2></div><p>Select a stage to inspect its method, data contract, output, and gate. The batch runner records a config hash, code version, timings, validation, and provenance so interrupted work can resume safely.</p></div>
+        <div class="panel pipeline">
+          <div class="pipeline-track" role="tablist" aria-label="Study stages" id="stageTabs"></div>
+          <div class="play-row"><button class="button secondary" id="playFlow">▶ Play the full process</button></div>
+          <article class="stage-detail" id="stageDetail" aria-live="polite"></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="methods">
+      <div class="shell">
+        <div class="section-head"><div><div class="eyebrow">02 · Core methods</div><h2>What the models actually do.</h2></div><p>The two spatial questions are deliberately separated: first identify contiguous built-up fabric; then ask how much of that urban population can reach useful public transport.</p></div>
+        <div class="visual-grid">
+          <article class="panel diagram">
+            <h3>Grow the morphological city</h3><p>Population density, building coverage, and local-street density become a balanced score. Adjacency grows only through shared edges; water is a hard exclusion.</p>
+            <div class="hex-map urban-on water-on" id="hexMap" aria-label="Stylized scored urban cells">
+              <span class="hex" data-water="true"></span><span class="hex" data-water="true"></span><span class="hex" data-score="mid"></span><span class="hex"></span><span class="hex"></span><span class="hex"></span>
+              <span class="hex" data-water="true"></span><span class="hex" data-score="mid"></span><span class="hex" data-score="high"></span><span class="hex" data-score="mid"></span><span class="hex"></span><span class="hex"></span>
+              <span class="hex"></span><span class="hex" data-score="high"></span><span class="hex" data-score="high"></span><span class="hex" data-score="high"></span><span class="hex" data-score="mid"></span><span class="hex"></span>
+              <span class="hex"></span><span class="hex" data-score="mid"></span><span class="hex" data-score="high"></span><span class="hex" data-score="mid"></span><span class="hex"></span><span class="hex"></span>
+            </div>
+            <div class="legend"><span style="color:#e67e3c"><i class="dot"></i>urban score</span><span style="color:#2671a7"><i class="dot"></i>water mask</span></div>
+            <div class="control-row"><button class="mini-button active" data-layer="urban-on">Urban score</button><button class="mini-button active" data-layer="water-on">Water mask</button></div>
+          </article>
+          <article class="panel diagram">
+            <h3>Measure the reachable population</h3><p>Stations generate network-distance catchments. Catchments are dissolved before coverage, then each cell contributes population by building footprint—or by intersected area where footprints are absent.</p>
+            <div class="catchment-viz" aria-label="Stylized walking network catchment">
+              <i class="street one"></i><i class="street two"></i><i class="street three"></i><i class="catchment"></i><i class="station-dot"></i>
+              <i class="building" style="left:23%;top:31%"></i><i class="building" style="left:31%;top:66%"></i><i class="building" style="left:44%;top:25%"></i><i class="building" style="left:62%;top:35%"></i><i class="building" style="left:69%;top:66%"></i><i class="building" style="left:78%;top:46%"></i>
+            </div>
+            <div class="gate"><strong>Why not centroids?</strong> A cell can be partly covered. The published 2025 Oslo figure (60.65%) used centroid containment; each new run records both centroid and weighted results so the methodological delta is explicit.</div>
+          </article>
+          <article class="panel diagram">
+            <h3>Route a weekday morning</h3><p>GTFS supplies schedules; r5py combines them with a clipped OSM PBF. Every population-cell centroid departs during a two-hour window and routes by walk + transit.</p>
+            <div class="timeline">
+              <div class="time-label"><span>Departure</span><output id="departureOutput">07:30</output></div>
+              <input id="departureRange" type="range" min="0" max="120" value="30" step="5" aria-label="Departure minutes after 7 AM">
+              <div class="trip" aria-label="Example door-to-door trip components"><span class="walk">Walk<br>6m</span><span class="wait">Wait<br>4m</span><span class="ride">Transit<br><b id="rideMinutes">21m</b></span><span class="egress">Walk<br>5m</span></div>
+              <div class="gate">Reported metrics: weighted median time to centre, population within 30/45 minutes, a direct-speed ratio, and—unless skipped—the all-cell travel-time matrix.</div>
+            </div>
+          </article>
+          <article class="panel diagram">
+            <h3>Publish comparable evidence</h3><p>Working CRSs stay local and metric. Publication reprojects every city to equal-area EPSG:3035 and writes a temporary GeoPackage before one atomic replacement.</p>
+            <svg viewBox="0 0 560 230" role="img" aria-label="Data publication flow" style="width:100%;margin-top:24px">
+              <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#91a3a5"/></marker></defs>
+              <g fill="#fff" stroke="#cbd5d2" stroke-width="2"><rect x="15" y="35" width="145" height="55" rx="14"/><rect x="15" y="138" width="145" height="55" rx="14"/><rect x="210" y="85" width="140" height="64" rx="14" fill="#d9efeb" stroke="#087f78"/><rect x="400" y="85" width="145" height="64" rx="14" fill="#fae6d8" stroke="#e67e3c"/></g>
+              <g fill="#102a34" font-family="system-ui" text-anchor="middle"><text x="87" y="60" font-weight="700">Working GPKGs</text><text x="87" y="79" font-size="12">local metric CRS</text><text x="87" y="163" font-weight="700">Provenance JSON</text><text x="87" y="182" font-size="12">validation + metrics</text><text x="280" y="111" font-weight="700">Harmonise</text><text x="280" y="131" font-size="12">EPSG:3035</text><text x="472" y="111" font-weight="700">pt_study.gpkg</text><text x="472" y="131" font-size="12">ArcGIS + CSV</text></g>
+              <g stroke="#91a3a5" stroke-width="2" marker-end="url(#arrow)"><path d="M160 63 L235 94"/><path d="M160 165 L235 140"/><path d="M350 117 L397 117"/></g>
+            </svg>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="cities">
+      <div class="shell">
+        <div class="section-head"><div><div class="eyebrow">03 · Study areas</div><h2>Six cities, one contract.</h2></div><p>Each city keeps the projected CRS suited to its local calculations. Publication—not analysis—is standardised to EPSG:3035. Feed tolerances remain city-specific because station names and operator structures differ.</p></div>
+        <div class="city-tabs" id="cityTabs" role="tablist" aria-label="Study cities"></div>
+        <article class="panel city-panel" id="cityPanel" aria-live="polite"></article>
+      </div>
+    </section>
+
+    <section id="run">
+      <div class="shell">
+        <div class="section-head"><div><div class="eyebrow">04 · Run it</div><h2>Generate the command.</h2></div><p>The runner skips only when both the city-config hash and code-version fingerprint match a completed state file. Use force when source data or external feeds need an intentional refresh.</p></div>
+        <div class="panel command-builder">
+          <label>City selection<select id="commandCity"><option value="all">All six cities</option><option value="oslo">Oslo</option><option value="stockholm">Stockholm</option><option value="copenhagen">Copenhagen</option><option value="helsinki">Helsinki</option><option value="brussels">Brussels</option><option value="paris">Paris</option></select></label>
+          <label>Stage<select id="commandStage"><option value="all">All stages</option><option value="urban">Urban area</option><option value="transport">PT catchment</option><option value="gtfs">GTFS + travel time</option></select></label>
+          <label style="display:flex;align-items:center;gap:8px;padding-bottom:11px"><input id="commandForce" type="checkbox"> Force refresh</label>
+          <div class="command"><code id="commandText">python run_study.py --cities all --stage all</code><button id="copyCommand">Copy</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="shell">
+        <div class="section-head"><div><div class="eyebrow">05 · Repository map</div><h2>Where the work lives.</h2></div><p>The Python packages own analytical semantics. Notebooks are exploratory only; GeoPackages and JSON sidecars are the hand-off to ArcGIS and the report.</p></div>
+        <div class="architecture">
+          <article class="panel arch"><h3>Urban morphology</h3><ul><li><code>urban_area/geometry.py</code> vector overlays + adjacency</li><li><code>urban_area/pipeline.py</code> orchestration</li><li><code>urban_area/water.py</code> hard exclusion + clipping</li><li><code>urban_area/osm_pbf.py</code> offline roads + water</li><li><code>calc_urban_area.py</code> one-city CLI</li></ul></article>
+          <article class="panel arch"><h3>Transport + accessibility</h3><ul><li><code>transport/rail.py</code> OSM infrastructure</li><li><code>transport/isochrones.py</code> network catchments</li><li><code>transport/coverage.py</code> weighted population</li><li><code>transport/gtfs.py</code> frequency + matching</li><li><code>transport/travel_time.py</code> r5py matrices</li></ul></article>
+          <article class="panel arch"><h3>Delivery + evidence</h3><ul><li><code>run_study.py</code> resume, logs, timings</li><li><code>publish_outputs.py</code> atomic EPSG:3035 output</li><li><code>export_arcgis_maps.py</code> 12 + 1 PDFs</li><li><code>benchmark_ghsl.py</code> external comparison</li><li><a class="artifact-link" href="README.md">Detailed Markdown reference</a></li></ul></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell"><strong>Public Transport Study</strong><span>Urban morphology → walking access → service frequency → door-to-door accessibility.</span></div></footer>
+
+  <script>
+    const stages = [
+      {name:'Inputs & hygiene', short:'Curate', text:'Create the six-feature cities_study layer, verify bounded population reads, archive corrupt transport outputs, and keep each cache keyed to its real CRS.', input:'Boundaries, Kontur population, MS footprints, OSM', output:'Clean canonical inputs + hygiene audit', gate:'Six boundaries and non-empty population bboxes; Oslo buildings in EPSG:25833.'},
+      {name:'Urban area', short:'Grow', text:'Vectorized overlays aggregate footprints and road length. A 0.52 / 0.43 / 0.05 population–building–road score seeds edge-adjacent region growth, followed by fine edge refinement and hard water exclusion from local city PBFs.', input:'Population cells, buildings, roads, water mask', output:'Urban cells + dissolved boundary', gate:'All six water-masked runs complete. Oslo: 244.72 km² and 82.26% urban population; 26 unit tests green.'},
+      {name:'PT catchment', short:'Walk', text:'OSM rail stations snap to a walking graph. Fifteen-minute reachable edges are buffered 25 m; station inclusion depends on catchment population rather than point-in-polygon.', input:'Rail features, walk graph, urban cells', output:'Stations + 15-minute isochrones', gate:'Non-empty line, station, isochrone, and station-diagnostic layers.'},
+      {name:'Coverage', short:'Weight', text:'Kept catchments are dissolved to prevent double counting. Population is allocated by covered building footprint with intersected-area fallback; centroid results are retained only for comparison.', input:'Dissolved catchment, cells, footprints', output:'covered_pop and covered_frac per cell', gate:'Covered population ≤ total urban population; method delta recorded.'},
+      {name:'GTFS frequency', short:'Schedule', text:'A representative Tuesday is filtered to rail services from 07:00–09:00. OSM and GTFS stations match by metric distance plus normalized-name similarity.', input:'Official GTFS feeds + kept OSM stations', output:'departures_per_hr + frequent coverage', gate:'Plausible match rate and coverage for stations with ≥6 departures/hour.'},
+      {name:'Travel time', short:'Route', text:'r5py combines JDK 21, city OSM PBF, and GTFS. Population-cell centroids route to the centre—and optionally every other cell—over a two-hour departure window.', input:'OSM PBF, GTFS, weighted origins', output:'Centre and all-cell matrices + accessibility metrics', gate:'Oslo and Stockholm sanity checks before the remaining four cities.'},
+      {name:'Publish & report', short:'Explain', text:'All city layers are harmonised in equal-area EPSG:3035. A temporary GeoPackage is fully written before replacement; ArcGIS exports 12 themed maps and one comparison layout.', input:'Working layers, provenance, validation', output:'pt_study.gpkg, city_summary.csv, PDFs, report', gate:'Six-city urban layers are published; PT layers are currently populated for Oslo and remain to be run for the other five cities.'}
+    ];
+    const stageTabs = document.querySelector('#stageTabs');
+    const detail = document.querySelector('#stageDetail');
+    function selectStage(index) {
+      [...stageTabs.children].forEach((button,i)=>button.setAttribute('aria-selected',String(i===index)));
+      const s=stages[index];
+      detail.innerHTML=`<div><div class="eyebrow">Stage ${String(index).padStart(2,'0')}</div><h3>${s.name}</h3><p>${s.text}</p><div class="gate"><strong>Quality gate</strong><br>${s.gate}</div></div><div class="io-grid"><div class="io-card"><b>Inputs</b>${s.input}</div><div class="io-card output"><b>Outputs</b>${s.output}</div></div>`;
+    }
+    stages.forEach((s,i)=>{const b=document.createElement('button');b.className='stage';b.role='tab';b.innerHTML=`<span class="number">${String(i).padStart(2,'0')}</span><strong>${s.name}</strong><small>${s.short}</small>`;b.addEventListener('click',()=>selectStage(i));stageTabs.append(b);});
+    selectStage(0);
+    let playing=false;
+    document.querySelector('#playFlow').addEventListener('click',async(e)=>{if(playing)return;playing=true;e.target.textContent='Playing…';for(let i=0;i<stages.length;i++){selectStage(i);stageTabs.children[i].classList.add('is-playing');await new Promise(r=>setTimeout(r,650));stageTabs.children[i].classList.remove('is-playing');}e.target.textContent='▶ Play the full process';playing=false;});
+
+    document.querySelectorAll('[data-layer]').forEach(button=>button.addEventListener('click',()=>{button.classList.toggle('active');document.querySelector('#hexMap').classList.toggle(button.dataset.layer);}));
+    const departure=document.querySelector('#departureRange');
+    function updateDeparture(){const total=420+Number(departure.value);const h=Math.floor(total/60),m=String(total%60).padStart(2,'0');document.querySelector('#departureOutput').value=`${String(h).padStart(2,'0')}:${m}`;document.querySelector('#rideMinutes').textContent=`${18+(Number(departure.value)%25)}m`;}
+    departure.addEventListener('input',updateDeparture);updateDeparture();
+
+    const cities=[
+      {slug:'oslo',name:'Oslo',country:'Norway',crs:'EPSG:25833',cells:'3,431',area:'244.72 km²',share:'82.26%',runtime:'94.1 s',feed:'Entur national GTFS',note:'Water-masked urban run complete. Weighted 15-minute PT coverage is 58.59%; frequent-service coverage is 42.86%. Travel-time routing remains pending.'},
+      {slug:'stockholm',name:'Stockholm',country:'Sweden',crs:'EPSG:3006',cells:'4,492',area:'317.68 km²',share:'63.70%',runtime:'108.7 s',feed:'Trafiklab GTFS Sweden 3',note:'Water-masked urban run complete. Trafiklab API key is still required for the GTFS and travel-time stages.'},
+      {slug:'copenhagen',name:'Copenhagen',country:'Denmark',crs:'EPSG:25832',cells:'2,550',area:'260.71 km²',share:'59.50%',runtime:'136.6 s',feed:'Rejseplanen',note:'Water-masked urban run complete. S-tog classification is reviewed explicitly during the station-matching gate.'},
+      {slug:'helsinki',name:'Helsinki',country:'Finland',crs:'EPSG:3067',cells:'4,386',area:'311.84 km²',share:'79.39%',runtime:'174.5 s',feed:'HSL / Digitransit',note:'Water-masked urban run complete, including extensive coastline and inland-water exclusions.'},
+      {slug:'brussels',name:'Brussels',country:'Belgium',crs:'EPSG:3812',cells:'2,311',area:'173.13 km²',share:'74.94%',runtime:'38.2 s',feed:'STIB + De Lijn',note:'Water-masked urban run complete. STIB and De Lijn feed URLs are still required; pre-metro tagging receives a manual spot check.'},
+      {slug:'paris',name:'Paris',country:'France',crs:'EPSG:2154',cells:'10,007',area:'1,058.01 km²',share:'73.41%',runtime:'311.1 s',feed:'Île-de-France Mobilités',note:'Water-masked urban run complete. IDFM GTFS is still required before the largest all-cell travel-time matrix.'}
+    ];
+    const cityTabs=document.querySelector('#cityTabs'),cityPanel=document.querySelector('#cityPanel');
+    function selectCity(index){[...cityTabs.children].forEach((b,i)=>b.classList.toggle('active',i===index));const c=cities[index];cityPanel.innerHTML=`<div><span class="status">Water-masked urban run complete</span><h3>${c.name}, ${c.country}</h3><p>${c.note}</p></div><div class="city-facts"><div class="fact"><b>${c.crs}</b><span>analysis CRS</span></div><div class="fact"><b>${c.area}</b><span>urban area</span></div><div class="fact"><b>${c.share}</b><span>urban population share</span></div><div class="fact"><b>${c.cells}</b><span>published urban cells</span></div><div class="fact"><b>${c.runtime}</b><span>final cached urban run</span></div><div class="fact"><b>${c.feed}</b><span>schedule source</span></div></div>`;}
+    cities.forEach((c,i)=>{const b=document.createElement('button');b.className='city-tab';b.role='tab';b.textContent=c.name;b.addEventListener('click',()=>selectCity(i));cityTabs.append(b);});selectCity(0);
+
+    const citySelect=document.querySelector('#commandCity'),stageSelect=document.querySelector('#commandStage'),force=document.querySelector('#commandForce'),commandText=document.querySelector('#commandText');
+    function command(){commandText.textContent=`python run_study.py --cities ${citySelect.value} --stage ${stageSelect.value}${force.checked?' --force':''}`;}
+    [citySelect,stageSelect,force].forEach(el=>el.addEventListener('change',command));
+    document.querySelector('#copyCommand').addEventListener('click',async(e)=>{try{await navigator.clipboard.writeText(commandText.textContent);e.target.textContent='Copied';setTimeout(()=>e.target.textContent='Copy',1200);}catch{e.target.textContent='Select text';}});
+  </script>
+</body>
+</html>

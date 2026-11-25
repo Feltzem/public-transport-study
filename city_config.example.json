@@ -3,48 +3,86 @@
     "Oslo, Norway": {
       "city_slug": "oslo",
       "metric_crs": "EPSG:25833",
-      "analysis_envelope_buffer_m": 0,
+      "boundaries_layer": "cities_study",
+      "centre_lon": 10.7522,
+      "centre_lat": 59.9139,
       "building_mode": "footprint",
-      "growth": {
-        "strictness": "medium",
-        "use_multi_seed": true,
-        "min_seed_cluster_size": 2,
-        "water_guard": true,
-        "keep_largest_component": true,
-        "min_component_population": 0,
-        "min_component_area_sqkm": 0,
-        "min_component_built_up_area_sqm": 0
-      },
-      "refinement": {
-        "enabled": true,
-        "subdivision_factor": 4,
-        "min_building_area_sqm": 600,
-        "min_road_density_km_per_sqkm": 3.0,
-        "require_local_presence": true
-      }
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 500, "min_station_urban_share": 0.25, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip"], "service_date": "2026-10-20", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 500, "min_name_similarity": 0.45},
+      "travel_time": {"osm_pbf": "./data/osm/oslo.osm.pbf"}
     },
     "Stockholm, Sweden": {
       "city_slug": "stockholm",
       "metric_crs": "EPSG:3006",
-      "analysis_envelope_buffer_m": 0,
-      "building_mode": "auto",
-      "growth": {
-        "strictness": "medium",
-        "use_multi_seed": true,
-        "min_seed_cluster_size": 2,
-        "water_guard": true,
-        "keep_largest_component": true,
-        "min_component_population": 0,
-        "min_component_area_sqkm": 0,
-        "min_component_built_up_area_sqm": 0
-      },
-      "refinement": {
-        "enabled": true,
-        "subdivision_factor": 4,
-        "min_building_area_sqm": 600,
-        "min_road_density_km_per_sqkm": 3.0,
-        "require_local_presence": true
-      }
+      "boundaries_layer": "cities_study",
+      "centre_lon": 18.0686,
+      "centre_lat": 59.3293,
+      "building_mode": "footprint",
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 500, "min_station_urban_share": 0.25, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["https://opendata.samtrafiken.se/gtfs-sweden/sweden.zip?key=${TRAFIKLAB_API_KEY}"], "service_date": "2026-10-20", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 550, "min_name_similarity": 0.4},
+      "travel_time": {"osm_pbf": "./data/osm/stockholm.osm.pbf"}
+    },
+    "Copenhagen, Denmark": {
+      "city_slug": "copenhagen",
+      "metric_crs": "EPSG:25832",
+      "boundaries_layer": "cities_study",
+      "centre_lon": 12.5683,
+      "centre_lat": 55.6761,
+      "building_mode": "footprint",
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 500, "min_station_urban_share": 0.25, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["https://www.rejseplanen.info/labs/GTFS.zip"], "service_date": "2026-10-20", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 550, "min_name_similarity": 0.4},
+      "travel_time": {"osm_pbf": "./data/osm/copenhagen.osm.pbf"}
+    },
+    "Helsinki, Finland": {
+      "city_slug": "helsinki",
+      "metric_crs": "EPSG:3067",
+      "boundaries_layer": "cities_study",
+      "centre_lon": 24.9384,
+      "centre_lat": 60.1699,
+      "building_mode": "footprint",
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 500, "min_station_urban_share": 0.25, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["https://infopalvelut.storage.hsldev.com/gtfs/hsl.zip"], "service_date": "2026-10-20", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 500, "min_name_similarity": 0.45},
+      "travel_time": {"osm_pbf": "./data/osm/helsinki.osm.pbf"}
+    },
+    "Brussels, Belgium": {
+      "city_slug": "brussels",
+      "metric_crs": "EPSG:3812",
+      "boundaries_layer": "cities_study",
+      "centre_lon": 4.3517,
+      "centre_lat": 50.8503,
+      "building_mode": "footprint",
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 500, "min_station_urban_share": 0.25, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["${STIB_GTFS_URL}", "${DELIJN_GTFS_URL}"], "service_date": "2026-11-10", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 650, "min_name_similarity": 0.35},
+      "travel_time": {"osm_pbf": "./data/osm/brussels.osm.pbf"}
+    },
+    "Paris, France": {
+      "city_slug": "paris",
+      "metric_crs": "EPSG:2154",
+      "boundaries_layer": "cities_study",
+      "centre_lon": 2.3522,
+      "centre_lat": 48.8566,
+      "building_mode": "footprint",
+      "growth": {"method": "degurba", "centre_density_min": 1500, "builtup_share_min": 0.2, "centre_min_population": 50000, "gap_fill_min_neighbors": 4, "max_hole_area_sqkm": 15, "cluster_density_min": 300, "cluster_min_population": 5000, "keep_other_centres": false},
+      "refinement": {"enabled": true, "subdivision_factor": 4, "min_building_area_sqm": 600, "min_road_density_km_per_sqkm": 3.0, "require_local_presence": true},
+      "water_mask": {"enabled": true, "water_gpkg": "./data/water_masks.gpkg", "coastline_buffer_m": 25, "min_land_fraction": 0.1},
+      "transport": {"walking_distance_m": 1125, "isochrone_buffer_m": 25, "min_station_population": 750, "min_station_urban_share": 0.2, "bus_walking_distance_m": 500},
+      "gtfs": {"feed_urls": ["${IDFM_GTFS_URL}"], "service_date": "2026-11-10", "window": [7, 9], "frequent_dep_per_hr": 6.0, "match_tolerance_m": 700, "min_name_similarity": 0.35},
+      "travel_time": {"osm_pbf": "./data/osm/paris.osm.pbf"}
     }
   }
 }

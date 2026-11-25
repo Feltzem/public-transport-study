@@ -6,6 +6,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.ops import unary_union
 
+from .geometry import vectorized_overlay_measure
 from .schemas import POLYGON_TYPES
 
 
@@ -23,24 +24,17 @@ def _building_area_in_geometries(buildings: gpd.GeoDataFrame, geometries: gpd.Ge
         return weights_by_row.groupby(geometries_work[id_col]).sum()
     footprints = footprints.reset_index(drop=True)
     footprints["_building_id"] = footprints.index
-    joined = gpd.sjoin(
-        footprints[["_building_id", "geometry"]],
-        geometries_work[["_geometry_row_id", "geometry"]],
-        how="inner",
-        predicate="intersects",
+    pairs = vectorized_overlay_measure(
+        footprints,
+        geometries_work,
+        feature_id_col="_building_id",
+        zone_id_col="_geometry_row_id",
+        measure="area",
     )
-    if joined.empty:
+    if pairs.empty:
         return weights_by_row.groupby(geometries_work[id_col]).sum()
-    geom_lookup = geometries_work.set_index("_geometry_row_id").geometry
-    for geom_id, group in joined.groupby("_geometry_row_id"):
-        geom = geom_lookup.loc[geom_id]
-        total = 0.0
-        for _, row in group.iterrows():
-            try:
-                total += footprints.loc[row["_building_id"], "geometry"].intersection(geom).area
-            except Exception:
-                continue
-        weights_by_row.loc[geom_id] = total
+    totals = pairs.groupby("_geometry_row_id")["intersection_measure"].sum()
+    weights_by_row.loc[totals.index] = totals
     return weights_by_row.groupby(geometries_work[id_col]).sum()
 
 
@@ -125,6 +119,58 @@ def population_within_catchments(
     )
 
 
+def _population_by_catchment(
+    population_cells: gpd.GeoDataFrame,
+    catchments: gpd.GeoDataFrame,
+    *,
+    station_id_col: str,
+    population_col: str,
+    method: str,
+    buildings: gpd.GeoDataFrame | None,
+) -> pd.Series:
+    """Calculate all per-station populations in one spatial-overlay pass."""
+    station_ids = pd.Index(catchments[station_id_col].drop_duplicates(), name=station_id_col)
+    empty = pd.Series(0.0, index=station_ids, dtype=float)
+    if population_cells.empty or catchments.empty:
+        return empty
+
+    cells = population_cells.copy().reset_index(drop=True)
+    cells["_cell_id"] = range(len(cells))
+    cells["_cell_area_sqm"] = cells.geometry.area
+    catchments_work = catchments.to_crs(cells.crs) if catchments.crs != cells.crs else catchments
+    intersections = gpd.overlay(
+        cells[["_cell_id", population_col, "_cell_area_sqm", "geometry"]],
+        catchments_work[[station_id_col, "geometry"]],
+        how="intersection",
+        keep_geom_type=False,
+    )
+    if intersections.empty:
+        return empty
+    intersections["_intersect_area_sqm"] = intersections.geometry.area
+    intersections = intersections[intersections["_intersect_area_sqm"] > 0].copy().reset_index(drop=True)
+    if intersections.empty:
+        return empty
+    intersections["_intersection_id"] = range(len(intersections))
+    area_fraction = (
+        intersections["_intersect_area_sqm"]
+        / intersections["_cell_area_sqm"].where(intersections["_cell_area_sqm"] > 0)
+    ).clip(0, 1).fillna(0.0)
+    coverage_fraction = area_fraction
+
+    use_buildings = method in {"building_weighted", "auto"} and buildings is not None and not buildings.empty
+    if use_buildings:
+        total_building_area = _building_area_in_geometries(buildings, cells, "_cell_id")
+        covered_building_area = _building_area_in_geometries(buildings, intersections, "_intersection_id")
+        total = intersections["_cell_id"].map(total_building_area).fillna(0.0)
+        covered = intersections["_intersection_id"].map(covered_building_area).fillna(0.0)
+        building_fraction = (covered / total.where(total > 0)).clip(0, 1)
+        coverage_fraction = building_fraction.fillna(area_fraction)
+
+    intersections["_covered_population"] = intersections[population_col] * coverage_fraction
+    totals = intersections.groupby(station_id_col)["_covered_population"].sum()
+    return totals.reindex(station_ids, fill_value=0.0).astype(float)
+
+
 def filter_stations_by_catchment_population(
     stations: gpd.GeoDataFrame,
     catchments: gpd.GeoDataFrame,
@@ -153,43 +199,37 @@ def filter_stations_by_catchment_population(
         else:
             catchments_work[station_id_col] = range(len(catchments_work))
 
-    totals_source = all_population_cells
-    rows = []
-    for _, catchment in catchments_work.iterrows():
-        station_id = catchment[station_id_col]
-        geom = catchment.geometry
-        urban_pop, _ = population_within_polygon(
-            urban_population_cells,
-            geom,
+    urban_populations = _population_by_catchment(
+        urban_population_cells,
+        catchments_work,
+        station_id_col=station_id_col,
+        population_col=population_col,
+        method=method,
+        buildings=buildings,
+    )
+    diagnostics = catchments_work[[station_id_col, "geometry"]].copy()
+    diagnostics["urban_catchment_population"] = diagnostics[station_id_col].map(urban_populations).fillna(0.0)
+    if all_population_cells is not None:
+        total_populations = _population_by_catchment(
+            all_population_cells,
+            catchments_work,
+            station_id_col=station_id_col,
             population_col=population_col,
             method=method,
             buildings=buildings,
         )
-        if totals_source is not None:
-            total_pop, _ = population_within_polygon(
-                totals_source,
-                geom,
-                population_col=population_col,
-                method=method,
-                buildings=buildings,
-            )
-            urban_share = float(urban_pop / total_pop) if total_pop else 0.0
-            share_ok = urban_share >= min_urban_share
-        else:
-            total_pop = None
-            urban_share = None
-            share_ok = False
-        keep = urban_pop >= min_population or share_ok
-        rows.append(
-            {
-                station_id_col: station_id,
-                "urban_catchment_population": urban_pop,
-                "total_catchment_population": total_pop,
-                "urban_share": urban_share,
-                "keep_station": keep,
-                "geometry": geom,
-            }
-        )
-    diagnostics = gpd.GeoDataFrame(rows, geometry="geometry", crs=catchments_work.crs)
+        diagnostics["total_catchment_population"] = diagnostics[station_id_col].map(total_populations).fillna(0.0)
+        diagnostics["urban_share"] = (
+            diagnostics["urban_catchment_population"]
+            / diagnostics["total_catchment_population"].where(diagnostics["total_catchment_population"] > 0)
+        ).fillna(0.0)
+        share_ok = diagnostics["urban_share"] >= min_urban_share
+    else:
+        diagnostics["total_catchment_population"] = None
+        diagnostics["urban_share"] = None
+        share_ok = pd.Series(False, index=diagnostics.index)
+    diagnostics["keep_station"] = (
+        diagnostics["urban_catchment_population"] >= min_population
+    ) | share_ok
     kept_ids = set(diagnostics.loc[diagnostics["keep_station"], station_id_col])
     return stations_work[stations_work[station_id_col].isin(kept_ids)].copy(), diagnostics

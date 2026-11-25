@@ -1,0 +1,148 @@
+{
+  "building_mode": "footprint",
+  "building_source_geometry_types": {
+    "Polygon": 276952
+  },
+  "building_warnings": [],
+  "city_name": "Helsinki, Finland",
+  "city_slug": "helsinki",
+  "config": {
+    "analysis_envelope_buffer_m": 0.0,
+    "boundaries_layer": "cities_study",
+    "boundaries_path": "D:\\Public Transport Study\\Input Data\\Boundaries\\Boundaries.gpkg",
+    "building_gpkg": "data\\building_footprints.gpkg",
+    "building_layer": null,
+    "building_mode": "footprint",
+    "centre_lat": 60.1699,
+    "centre_lon": 24.9384,
+    "city_name": "Helsinki, Finland",
+    "city_slug": "helsinki",
+    "data_dir": "data",
+    "growth": {
+      "builtup_share_min": 0.2,
+      "centre_density_min": 1500,
+      "centre_min_population": 50000,
+      "cluster_density_min": 300,
+      "cluster_min_population": 5000,
+      "gap_fill_min_neighbors": 4,
+      "keep_largest_component": true,
+      "keep_other_centres": false,
+      "max_hole_area_sqkm": 15,
+      "method": "degurba",
+      "min_component_area_sqkm": 0.0,
+      "min_component_built_up_area_sqm": 0.0,
+      "min_component_population": 0.0,
+      "min_seed_cluster_size": 2,
+      "strictness": "medium",
+      "use_multi_seed": true,
+      "water_guard": true
+    },
+    "local_road_values": [
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential",
+      "living_street",
+      "primary_link",
+      "secondary_link",
+      "tertiary_link",
+      "service"
+    ],
+    "major_road_values": [
+      "motorway",
+      "trunk",
+      "motorway_link",
+      "trunk_link"
+    ],
+    "metric_crs": "EPSG:3067",
+    "population_gpkg": "data\\population_density.gpkg",
+    "population_layer": "population_density_cities_used",
+    "refinement": {
+      "enabled": true,
+      "min_building_area_sqm": 600,
+      "min_road_density_km_per_sqkm": 3.0,
+      "require_local_presence": true,
+      "subdivision_factor": 4
+    },
+    "road_gpkg": "data\\road_networks.gpkg",
+    "road_layer": null,
+    "road_tags": {
+      "highway": [
+        "motorway",
+        "trunk",
+        "motorway_link",
+        "trunk_link",
+        "primary",
+        "secondary",
+        "tertiary",
+        "unclassified",
+        "residential",
+        "living_street",
+        "primary_link",
+        "secondary_link",
+        "tertiary_link",
+        "service"
+      ]
+    },
+    "urban_areas_gpkg": "data\\urban_areas.gpkg",
+    "water_mask": {
+      "coastline_buffer_m": 25,
+      "enabled": true,
+      "min_land_fraction": 0.1,
+      "water_gpkg": "data\\water_masks.gpkg",
+      "water_layer": null
+    }
+  },
+  "metric_crs": "EPSG:3067",
+  "outputs": {
+    "analysis_layer": "population_density_with_buildings_roads_helsinki",
+    "urban_cells_method": "growing_refined"
+  },
+  "road_signal": {
+    "local_urban_fabric_roads": [
+      "primary",
+      "secondary",
+      "tertiary",
+      "unclassified",
+      "residential",
+      "living_street",
+      "primary_link",
+      "secondary_link",
+      "tertiary_link",
+      "service"
+    ],
+    "major_transport_roads_diagnostic_only": [
+      "motorway",
+      "trunk",
+      "motorway_link",
+      "trunk_link"
+    ],
+    "scoring_column": "local_road_density_km_per_sqkm"
+  },
+  "run_started_at_utc": "2026-10-18T15:17:37.896026+00:00",
+  "station_filtering_note": "Use catchment population/intersection logic, not station point-in-polygon tests",
+  "urban_area_type": "morphological_built_up_area",
+  "urban_detection": {
+    "builtup_share_min": 0.2,
+    "centre_density_min_per_sqkm_land": 1500,
+    "centre_min_population": 50000,
+    "cluster_density_min_per_sqkm_land": 300,
+    "cluster_min_population": 5000,
+    "gap_fill_min_neighbors_of_6": 4,
+    "max_hole_area_sqkm": 15,
+    "method": "degurba",
+    "reference": "Degree of Urbanisation (Dijkstra and Poelman; GHSL 2023), adapted to Kontur H3 r8 cells",
+    "resolution_caveat": "H3 r8 cells (~0.74 sq km) are smaller than the 1 sq km DEGURBA grid",
+    "study_area": "urban centre containing the configured city-centre point"
+  },
+  "water_mask": {
+    "densities_on_land_area": true,
+    "enabled": true,
+    "layer": "water_mask_v3_helsinki",
+    "min_land_fraction": 0.1,
+    "population_scaled_by_clip": false,
+    "published_geometry_clipped": true
+  },
+  "written_at_utc": "2026-10-18T15:17:38.349782+00:00"
+}

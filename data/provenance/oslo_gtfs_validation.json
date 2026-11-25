@@ -1,0 +1,17 @@
+{
+  "summary": {
+    "access_pop_30min_pct": 8.965558521312115,
+    "access_pop_45min_pct": 33.91095073143942,
+    "city": "Oslo, Norway",
+    "city_slug": "oslo",
+    "departure_window": "07:00-09:00",
+    "median_pt_to_direct_speed_ratio": 0.32090069067645194,
+    "median_tt_centre_min": 35.0,
+    "pct_centre_30min": 32.23352059631084,
+    "pct_centre_45min": 82.91426685356134,
+    "service_date": "2026-10-20",
+    "unreachable_centre_population_pct": 0.005289136088752821,
+    "urban_population": 714051.6448375051
+  },
+  "written_at_utc": "2026-10-18T05:54:27.831243+00:00"
+}

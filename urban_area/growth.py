@@ -123,6 +123,7 @@ def run_growing_method(
     min_seed_cluster_size: int = 2,
     adjacency_mode: str = "edge",
     min_shared_boundary_m: float = 1.0,
+    adjacency: dict[int, set[int]] | None = None,
     keep_largest_component: bool = True,
     min_component_population: float = 0.0,
     min_component_area_sqkm: float = 0.0,
@@ -140,13 +141,22 @@ def run_growing_method(
     density["qual_score"] = (
         0.50 * density["pop_norm"] + 0.40 * density["building_signal_norm"] + 0.10 * density.get("road_norm", 0)
     )
-    adjacency = build_adjacency_graph(
-        density,
-        id_col="cell_id",
-        mode=adjacency_mode,
-        min_shared_boundary_m=min_shared_boundary_m,
-    )
-    lookup = density.set_index("cell_id")
+    if "is_water" not in density:
+        density["is_water"] = False
+    if adjacency is None:
+        adjacency = build_adjacency_graph(
+            density,
+            id_col="cell_id",
+            mode=adjacency_mode,
+            min_shared_boundary_m=min_shared_boundary_m,
+        )
+    lookup = density.set_index("cell_id")[[
+        "pop_norm",
+        "building_signal_norm",
+        "road_norm",
+        "qual_score",
+        "is_water",
+    ]].to_dict(orient="index")
     eps_pop = max(5.0 / (float(density["population"].max()) or 1.0), 0.002)
     eps_building = 0.002
     eps_road = 0.002
@@ -163,7 +173,10 @@ def run_growing_method(
         urban_ids = set().union(*seed_clusters)
         q = deque(urban_ids)
     else:
-        seed_idx = density["urban_score_base"].idxmax()
+        eligible = density[~density["is_water"]]
+        if eligible.empty:
+            return gpd.GeoDataFrame(columns=density.columns, geometry="geometry", crs=density.crs)
+        seed_idx = eligible["urban_score_base"].idxmax()
         seed_id = density.loc[seed_idx, "cell_id"]
         urban_ids = {seed_id}
         q = deque([seed_id])
@@ -173,7 +186,9 @@ def run_growing_method(
         for neighbor in adjacency.get(current, set()):
             if neighbor in urban_ids:
                 continue
-            row = lookup.loc[neighbor]
+            row = lookup[neighbor]
+            if row["is_water"]:
+                continue
             if water_guard and row["pop_norm"] < eps_pop and row["building_signal_norm"] < eps_building:
                 continue
             neighbor_set = adjacency.get(neighbor, set())
@@ -207,7 +222,9 @@ def run_growing_method(
             continue
         neighbors = adjacency.get(cid, set())
         if len(neighbors) >= 3 and neighbors.issubset(urban_ids):
-            row = lookup.loc[cid]
+            row = lookup[cid]
+            if row["is_water"]:
+                continue
             if row["pop_norm"] >= eps_pop or row["building_signal_norm"] >= eps_building:
                 urban_ids.add(cid)
                 holes += 1
@@ -238,3 +255,53 @@ def run_growing_method(
 
     urban["growth_holes_added"] = holes
     return urban.drop(columns=["component", "qual_score"], errors="ignore").reset_index(drop=True)
+
+
+def detect_urban_cells(
+    analysis_cells: gpd.GeoDataFrame,
+    growth,
+    *,
+    adjacency: dict[int, set[int]],
+    centre_point=None,
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    """Run the configured urban-detection method.
+
+    Returns ``(analysis_cells, urban_cells)``; the DEGURBA method also adds
+    ``degurba_class`` and ``in_study_area`` to the analysis cells.
+    """
+    if growth.method == "degurba":
+        from .degurba import run_degurba_method
+
+        return run_degurba_method(analysis_cells, adjacency, growth, centre_point=centre_point)
+    if growth.method != "score":
+        raise ValueError(f"Unknown growth method {growth.method!r}; expected 'degurba' or 'score'")
+    urban = run_growing_method(
+        analysis_cells,
+        urban_strictness=growth.strictness,
+        water_guard=growth.water_guard,
+        multi_seed=growth.use_multi_seed,
+        min_seed_cluster_size=growth.min_seed_cluster_size,
+        keep_largest_component=growth.keep_largest_component,
+        min_component_population=growth.min_component_population,
+        min_component_area_sqkm=growth.min_component_area_sqkm,
+        min_component_built_up_area_sqm=growth.min_component_built_up_area_sqm,
+        adjacency=adjacency,
+    )
+    return analysis_cells, urban
+
+
+def component_retention_kwargs(growth) -> dict[str, object]:
+    """Component-retention settings applied after edge refinement."""
+    if growth.method == "degurba":
+        return {
+            "keep_largest_component": not growth.keep_other_centres,
+            "min_component_population": growth.cluster_min_population if growth.keep_other_centres else 0.0,
+            "min_component_area_sqkm": 0.0,
+            "min_component_built_up_area_sqm": 0.0,
+        }
+    return {
+        "keep_largest_component": growth.keep_largest_component,
+        "min_component_population": growth.min_component_population,
+        "min_component_area_sqkm": growth.min_component_area_sqkm,
+        "min_component_built_up_area_sqm": growth.min_component_built_up_area_sqm,
+    }

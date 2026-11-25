@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import time
 
+import study_state
 from urban_area import CityConfig, load_city_config, run_urban_area_pipeline
 
 
@@ -28,7 +30,13 @@ def main() -> None:
         config = load_city_config(args.config, city_name=args.city)
     else:
         config = CityConfig(city_name=args.city)
+    started = time.perf_counter()
     result = run_urban_area_pipeline(config, query_missing=args.query_missing, write_outputs=not args.no_save)
+    if args.config and not args.no_save:
+        study_state.write_state(
+            config.resolved_slug(), "urban", study_state.city_payload(args.config, args.city),
+            study_state.code_version(), time.perf_counter() - started,
+        )
     report = result["validation_report"]
     print(f"City: {config.city_name}")
     print("Area type: morphological built-up urban area")

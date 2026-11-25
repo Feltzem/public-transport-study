@@ -1,8 +1,8 @@
-# Ignore data, cache, .github, .vnev folders and workspace file
-/data/
+# Ignore data, cache, .github, .venv folders and workspace file
+/data/*
+!/data/provenance/
 /cache/
 /.github/
-/.vnev/
 /.venv/
 __pycache__/
 .pytest_cache/
