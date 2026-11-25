@@ -147,6 +147,7 @@ class CityConfig:
     analysis_envelope_buffer_m: float = 0.0
     centre_lon: float | None = None
     centre_lat: float | None = None
+    centre_label: str | None = None
     population_gpkg: Path = Path("./data/population_density.gpkg")
     population_layer: str = "population_density_cities_used"
     urban_areas_gpkg: Path = Path("./data/urban_areas.gpkg")

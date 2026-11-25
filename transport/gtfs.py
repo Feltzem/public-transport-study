@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from difflib import SequenceMatcher
+import hashlib
 import io
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ from urllib.request import Request, urlopen
 import zipfile
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import shapely
 
@@ -86,15 +88,76 @@ def _ssl_context():
     return ssl.create_default_context(cafile=certifi.where())
 
 
+def _expand_env(template: str, what: str) -> str:
+    value = os.path.expandvars(template)
+    if "$" in value:
+        # Report the template, never the expanded value.
+        raise RuntimeError(f"{what} has an unresolved environment variable: {template}")
+    return value
+
+
+def feed_request_headers(config: TransportConfig, configured_url: str) -> dict[str, str]:
+    """HTTP headers for one feed. Header values in ``gtfs_feed_headers`` are
+    environment-variable templates such as ``"${DELIJN_API_KEY}"``, keyed by
+    the configured (unexpanded) feed URL, so keys never sit in config files."""
+    headers = {"User-Agent": "pt-study/1.0"}
+    for name, template in (config.gtfs_feed_headers or {}).get(configured_url, {}).items():
+        headers[name] = _expand_env(template, f"Header {name} for GTFS feed {configured_url}")
+    return headers
+
+
+_SECRET_QUERY_KEYS = {"key", "api_key", "apikey", "token", "access_token", "subscription-key", "code"}
+
+
+def sanitise_feed_url(configured_url: str) -> str:
+    """Return the configured feed URL with any literal secret query values masked.
+
+    Environment-variable placeholders are kept, since they hold no secret."""
+    parsed = urlparse(configured_url)
+    if not parsed.query:
+        return configured_url
+    parts = []
+    for item in parsed.query.split("&"):
+        name, sep, value = item.partition("=")
+        if sep and name.lower() in _SECRET_QUERY_KEYS and not value.startswith("$"):
+            value = "***"
+        parts.append(f"{name}{sep}{value}")
+    return parsed._replace(query="&".join(parts)).geturl()
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        while chunk := stream.read(4 * 1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def feed_provenance(config: TransportConfig, feed_paths: list[Path]) -> list[dict]:
+    """Per-feed provenance: configured source (sanitised), cached path, size, SHA-256."""
+    sources = list(config.gtfs_feed_urls)
+    records = []
+    for index, path in enumerate(feed_paths):
+        path = Path(path)
+        records.append(
+            {
+                "source": sanitise_feed_url(sources[index]) if index < len(sources) else None,
+                "path": str(path),
+                "bytes": path.stat().st_size,
+                "sha256": file_sha256(path),
+            }
+        )
+    return records
+
+
 def download_gtfs_feeds(config: TransportConfig, *, force: bool = False) -> list[Path]:
-    """Download configured feeds atomically, expanding environment variables."""
+    """Download configured feeds atomically, expanding environment variables
+    in URLs and in any per-feed request headers."""
     outputs = []
     directory = config.cache_dir / "gtfs" / config.resolved_slug()
     directory.mkdir(parents=True, exist_ok=True)
     for index, configured_url in enumerate(config.gtfs_feed_urls, start=1):
-        url = os.path.expandvars(configured_url)
-        if "$" in url:
-            raise RuntimeError(f"GTFS URL has an unresolved environment variable: {configured_url}")
+        url = _expand_env(configured_url, "GTFS URL")
         destination = directory / f"feed_{index}.zip"
         if force or not destination.exists() or destination.stat().st_size == 0:
             temporary = destination.with_suffix(".zip.part")
@@ -103,7 +166,7 @@ def download_gtfs_feeds(config: TransportConfig, *, force: bool = False) -> list
             if local_source.exists():
                 shutil.copyfile(local_source, temporary)
             else:
-                request = Request(url, headers={"User-Agent": "pt-study/1.0"})
+                request = Request(url, headers=feed_request_headers(config, configured_url))
                 with urlopen(request, timeout=120, context=_ssl_context()) as response, temporary.open("wb") as stream:
                     while chunk := response.read(1024 * 1024):
                         stream.write(chunk)
@@ -186,29 +249,66 @@ def _read_active_stop_times(archive: zipfile.ZipFile, trip_ids: set[str]) -> pd.
 
 
 def _direction_key(trips: pd.DataFrame) -> pd.Series:
-    key = pd.Series("all", index=trips.index, dtype=object)
-    if "trip_headsign" in trips:
-        headsign = trips["trip_headsign"].astype(str).where(trips["trip_headsign"].notna())
-        key = ("h:" + headsign).where(headsign.notna(), key)
+    """Per-trip direction key from ``direction_id``; "infer" where it is missing.
+
+    Trips marked "infer" get a direction per stop from the bearing to their
+    next stop (see ``_bearing_direction_keys``)."""
+    key = pd.Series("infer", index=trips.index, dtype=object)
     if "direction_id" in trips:
         direction = pd.to_numeric(trips["direction_id"], errors="coerce")
         key = ("d:" + direction.astype("Int64").astype(str)).where(direction.notna(), key)
     return key
 
 
+def _bearing_direction_keys(departures: pd.DataFrame, stops: pd.DataFrame) -> pd.Series:
+    """Direction keys for departures whose trips have no ``direction_id``.
+
+    Each departure's bearing to the trip's next stop is folded onto the
+    station's principal axis (axial mean of doubled angles, per station and
+    mode); departures on either side of the perpendicular form the two
+    directions. On a line through a station this reproduces ``direction_id``.
+    Departures with no usable next-stop position fall back to the headsign.
+    """
+    lon = pd.to_numeric(stops.set_index("stop_id")["stop_lon"], errors="coerce")
+    lat = pd.to_numeric(stops.set_index("stop_id")["stop_lat"], errors="coerce")
+    lat0 = np.radians(departures["stop_id"].map(lat))
+    dx = (departures["next_stop_id"].map(lon) - departures["stop_id"].map(lon)) * np.cos(lat0)
+    dy = departures["next_stop_id"].map(lat) - departures["stop_id"].map(lat)
+    theta = np.arctan2(dy, dx).where((dx.abs() + dy.abs()) > 0)
+    work = pd.DataFrame(
+        {"station_key": departures["station_key"], "mode": departures["mode"], "s": np.sin(2 * theta), "c": np.cos(2 * theta)}
+    )
+    sums = work.groupby(["station_key", "mode"])[["s", "c"]].transform("sum")
+    axis = 0.5 * np.arctan2(sums["s"], sums["c"])
+    side = np.cos(theta - axis) >= 0
+    keys = pd.Series(np.where(side, "b:0", "b:1"), index=departures.index, dtype=object)
+    headsign = departures.get("trip_headsign", pd.Series(index=departures.index, dtype=object))
+    fallback = ("h:" + headsign.astype(str)).where(headsign.notna(), "all")
+    return keys.where(theta.notna(), fallback)
+
+
 def _station_departures(stop_times, trips, stops, start_hour, end_hour, feed_prefix, bbox) -> gpd.GeoDataFrame:
     stop_times = stop_times.copy()
     stop_times["stop_sequence"] = pd.to_numeric(stop_times["stop_sequence"], errors="coerce")
+    if (trips["direction_key"] == "infer").any():
+        # The next stop of each trip, needed only where direction must be inferred.
+        stop_times = stop_times.sort_values(["trip_id", "stop_sequence"], kind="stable")
+        stop_times["next_stop_id"] = stop_times.groupby("trip_id")["stop_id"].shift(-1)
     last_sequence = stop_times.groupby("trip_id")["stop_sequence"].transform("max")
     departures = stop_times[stop_times["stop_sequence"] < last_sequence]
     if "pickup_type" in departures:
         departures = departures[pd.to_numeric(departures["pickup_type"], errors="coerce").fillna(0) != 1]
-    departures = departures.merge(trips[["trip_id", "mode", "direction_key"]], on="trip_id", how="inner")
+    trip_columns = ["trip_id", "mode", "direction_key"] + (["trip_headsign"] if "trip_headsign" in trips else [])
+    departures = departures.merge(trips[trip_columns], on="trip_id", how="inner")
 
-    parent = stops.get("parent_station", pd.Series(index=stops.index, dtype=object)).fillna("").astype(str)
+    # Some feeds (HSL) pad empty parent_station values with a space.
+    parent = stops.get("parent_station", pd.Series(index=stops.index, dtype=object)).fillna("").astype(str).str.strip()
     station_of = dict(zip(stops["stop_id"], parent.where(parent.str.len() > 0, stops["stop_id"])))
     departures["station_key"] = departures["stop_id"].map(station_of).fillna(departures["stop_id"])
     departures["departure_seconds"] = _time_seconds(departures["departure_time"])
+    infer = departures["direction_key"] == "infer"
+    if infer.any():
+        departures.loc[infer, "direction_key"] = _bearing_direction_keys(departures[infer], stops)
 
     keys = ["station_key", "mode"]
     day = departures.groupby(keys).size().rename("departures_day")
@@ -477,7 +577,11 @@ def prepare_r5_feed(
         routes = _read_csv(archive, "routes.txt", dtype=str, keep_default_na=False)
         routes = routes[routes["route_id"].isin(set(trips["route_id"]))]
         used_stops = set(stop_times["stop_id"])
-        parents = set(stops.loc[stops["stop_id"].isin(used_stops), "parent_station"].dropna()) - {""}
+        if "parent_station" in stops:
+            stops["parent_station"] = stops["parent_station"].fillna("").astype(str).str.strip()
+            parents = set(stops.loc[stops["stop_id"].isin(used_stops), "parent_station"]) - {""}
+        else:
+            parents = set()
         stops = stops[stops["stop_id"].isin(used_stops | parents)].fillna("")
         services = set(trips["service_id"])
         tables = {"stops.txt": stops, "stop_times.txt": stop_times, "trips.txt": trips, "routes.txt": routes}

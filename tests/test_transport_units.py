@@ -398,3 +398,127 @@ def test_r5_feed_is_clipped_and_drops_multi_day_trips(tmp_path):
     # "end" (Terminus) lies outside the box, so trips keep only their Central stops.
     assert set(stop_times["stop_id"]) <= {"p1", "p2"}
     assert "transfers.txt" not in names
+
+
+def test_whitespace_parent_station_keeps_each_stop_as_its_own_station(tmp_path):
+    files = _feed_files()
+    # HSL pads empty parent_station values with a single space.
+    files["stops.txt"] = (
+        "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n"
+        "p1,Central platform 1,60.0,10.0,0, \n"
+        "p2,Central platform 2,60.0,10.001,0, \n"
+        "end,Terminus,60.1,10.1,0, \n"
+    )
+    rows = [row.split(",") for row in files["stop_times.txt"].strip().split("\n")]
+    files["stop_times.txt"] = "".join(",".join([r[0], "arrival_time" if i == 0 else r[1], *r[1:]]) + "\n" for i, r in enumerate(rows))
+    path = tmp_path / "feed.zip"
+    _write_feed(path, files)
+    stations = parse_feed_departures(path, service_date=date(2026, 8, 11), feed_prefix="test", modes=("rail", "bus"))
+    rail = stations[stations["mode"] == "rail"].set_index("stop_id")
+    assert set(rail.index) == {"test:p1", "test:p2", "test:end"}
+    assert rail.loc["test:p1", "departures_per_hr"] == pytest.approx(0.5)
+    assert rail.loc["test:p2", "departures_per_hr"] == pytest.approx(0.5)
+    assert set(stations.loc[stations["mode"] == "bus", "stop_id"]) == {"test:p1"}
+
+    output = prepare_r5_feed(path, tmp_path / "feed_r5.zip", bbox=(9.9, 59.9, 10.2, 60.2))
+    with zipfile.ZipFile(output) as archive:
+        stops = pd.read_csv(archive.open("stops.txt"), dtype=str, keep_default_na=False)
+    assert set(stops["stop_id"]) == {"p1", "p2", "end"}
+    assert set(stops["parent_station"]) == {""}
+
+
+def test_feed_headers_expand_from_environment_and_stay_out_of_provenance(tmp_path, monkeypatch):
+    import io as _io
+    import json
+    from dataclasses import asdict
+
+    import transport.gtfs as gtfs_module
+    from transport.config import TransportConfig, load_transport_config
+    from transport.pipeline import _jsonable
+
+    secret = "s3cr3t-subscription-value"
+    monkeypatch.setenv("TEST_FEED_KEY", secret)
+    url = "https://example.invalid/gtfs.zip"
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"cities": {"Test, Land": {
+        "city_slug": "test",
+        "gtfs": {"feed_urls": [url, "https://example.invalid/open.zip?key=literalkey"],
+                 "feed_headers": {url: {"Ocp-Apim-Subscription-Key": "${TEST_FEED_KEY}"}}},
+    }}}), encoding="utf-8")
+    config = load_transport_config(config_path, "Test, Land")
+    config = TransportConfig(**{**asdict(config), "cache_dir": tmp_path / "cache"})
+    assert config.gtfs_feed_headers[url] == {"Ocp-Apim-Subscription-Key": "${TEST_FEED_KEY}"}
+
+    seen = {}
+
+    class _Response(_io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(request, timeout, context):
+        seen[request.full_url] = dict(request.header_items())
+        return _Response(b"zipbytes")
+
+    monkeypatch.setattr(gtfs_module, "urlopen", fake_urlopen)
+    paths = gtfs_module.download_gtfs_feeds(config)
+    assert seen[url]["Ocp-apim-subscription-key"] == secret
+    assert "Ocp-apim-subscription-key" not in seen["https://example.invalid/open.zip?key=literalkey"]
+
+    records = gtfs_module.feed_provenance(config, paths)
+    assert records[0]["sha256"] == __import__("hashlib").sha256(b"zipbytes").hexdigest()
+    assert records[1]["source"].endswith("key=***")
+    provenance_text = json.dumps({"files": records, "config": _jsonable(asdict(config))})
+    assert secret not in provenance_text
+    assert "literalkey" not in json.dumps(records)
+
+    monkeypatch.delenv("TEST_FEED_KEY")
+    with pytest.raises(RuntimeError, match="unresolved environment variable") as error:
+        gtfs_module.download_gtfs_feeds(config, force=True)
+    assert secret not in str(error.value)
+
+
+def test_missing_direction_id_is_inferred_from_bearing_to_next_stop(tmp_path):
+    # A north-south line through Mid with two northern branches (different
+    # headsigns) and one southern destination, and no direction_id at all.
+    files = {
+        "routes.txt": "route_id,route_type\nr1,2\n",
+        "trips.txt": (
+            "route_id,service_id,trip_id,trip_headsign\n"
+            "r1,weekday,n1,North A\nr1,weekday,n2,North A\nr1,weekday,n3,North B\nr1,weekday,n4,North B\n"
+            "r1,weekday,s1,South\nr1,weekday,s2,South\n"
+        ),
+        "calendar.txt": (
+            "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+            "weekday,1,1,1,1,1,0,0,20260801,20260831\n"
+        ),
+        "stops.txt": (
+            "stop_id,stop_name,stop_lat,stop_lon\n"
+            "south,South,59.90,10.000\nmid,Mid,59.95,10.000\nnorth_a,North A,60.00,9.990\nnorth_b,North B,60.00,10.010\n"
+        ),
+        "stop_times.txt": (
+            "trip_id,departure_time,stop_id,stop_sequence\n"
+            "n1,07:00:00,south,1\nn1,07:10:00,mid,2\nn1,07:20:00,north_a,3\n"
+            "n2,08:00:00,south,1\nn2,08:10:00,mid,2\nn2,08:20:00,north_a,3\n"
+            "n3,07:30:00,south,1\nn3,07:40:00,mid,2\nn3,07:50:00,north_b,3\n"
+            "n4,08:30:00,south,1\nn4,08:40:00,mid,2\nn4,08:50:00,north_b,3\n"
+            "s1,07:00:00,north_a,1\ns1,07:15:00,mid,2\ns1,07:30:00,south,3\n"
+            "s2,08:00:00,north_b,1\ns2,08:15:00,mid,2\ns2,08:30:00,south,3\n"
+        ),
+    }
+    path = tmp_path / "feed.zip"
+    _write_feed(path, files)
+    stations = parse_feed_departures(path, service_date=date(2026, 8, 11), feed_prefix="t", modes=("rail",))
+    mid = stations.set_index("stop_id").loc["t:mid"]
+    # Four northbound departures in two hours pool into one direction despite two headsigns.
+    assert mid["departures_per_hr"] == pytest.approx(2.0)
+    assert mid["departures_per_hr_total"] == pytest.approx(3.0)
+
+
+def test_direction_id_still_takes_precedence_over_bearing(tmp_path):
+    path = tmp_path / "feed.zip"
+    _write_feed(path, _feed_files())
+    stations = parse_feed_departures(path, service_date=date(2026, 8, 11), feed_prefix="test", modes=("rail",))
+    assert stations.set_index("stop_id").loc["test:parent", "departures_per_hr"] == pytest.approx(1.0)

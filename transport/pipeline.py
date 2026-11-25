@@ -22,6 +22,7 @@ from .gtfs import (
     RAIL_TIER_MODES,
     consolidate_stations,
     download_gtfs_feeds,
+    feed_provenance,
     load_departures,
     match_gtfs_to_osm_stations,
 )
@@ -291,6 +292,7 @@ def _finish(config, slug, crs, service_date, feeds, write_outputs, **frames) -> 
         "station_filter_method": "walking_catchment_population_or_urban_share",
         "network_cache_key": config.walk_graph_path().name,
         "gtfs_feeds": [str(path) for path in feeds],
+        "gtfs_feed_files": feed_provenance(config, feeds),
         "config": _jsonable(asdict(config)),
         "legacy_oslo_reference_pct": 60.65 if slug == "oslo" else None,
         "legacy_centroid_pct_this_run": summary["legacy_centroid_pct"],

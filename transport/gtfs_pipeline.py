@@ -10,7 +10,7 @@ from datetime import date
 from typing import Any
 
 from .config import TransportConfig
-from .gtfs import download_gtfs_feeds, prepare_r5_feed
+from .gtfs import download_gtfs_feeds, feed_provenance, prepare_r5_feed
 from .io import load_transport_inputs, write_json
 from .travel_time import compute_travel_time_metrics
 
@@ -64,7 +64,13 @@ def run_gtfs_pipeline(
         provenance_dir = config.data_dir / "provenance"
         write_json(
             provenance_dir / f"{slug}_gtfs_provenance.json",
-            {"summary": summary, "feed_paths": [str(path) for path in feeds], "outputs": outputs},
+            {
+                "summary": summary,
+                "centre": {"lon": config.centre_lon, "lat": config.centre_lat, "label": config.centre_label},
+                "feed_paths": [str(path) for path in feeds],
+                "gtfs_feed_files": feed_provenance(config, feeds),
+                "outputs": outputs,
+            },
         )
         write_json(provenance_dir / f"{slug}_gtfs_validation.json", {"summary": summary})
     return {"summary": summary, "outputs": outputs, "to_centre": centre_matrix, "all_cells": all_cells_matrix}

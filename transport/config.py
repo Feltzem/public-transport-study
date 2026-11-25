@@ -40,6 +40,10 @@ class TransportConfig:
     bus_walking_distance_m: float = 500.0
     all_modes: list[str] = field(default_factory=lambda: ["rail", "metro", "tram", "bus", "ferry", "funicular", "cable"])
     gtfs_feed_urls: list[str] = field(default_factory=list)
+    # Optional request headers per configured feed URL. Values are
+    # environment-variable templates (e.g. "${DELIJN_API_KEY}"), expanded
+    # only at download time, so secrets never reach config or provenance.
+    gtfs_feed_headers: dict[str, dict[str, str]] = field(default_factory=dict)
     gtfs_service_date: str | None = None
     gtfs_window: tuple[int, int] = (7, 9)
     frequent_dep_per_hr: float = 6.0
@@ -47,6 +51,7 @@ class TransportConfig:
     gtfs_min_name_similarity: float = 0.45
     centre_lon: float | None = None
     centre_lat: float | None = None
+    centre_label: str | None = None
     osm_pbf: Path | None = None
 
     def resolved_slug(self) -> str:
@@ -123,6 +128,8 @@ def load_transport_config(path: str | Path, city_name: str) -> TransportConfig:
     values.update(transport)
     if "feed_urls" in gtfs:
         values["gtfs_feed_urls"] = gtfs["feed_urls"]
+    if "feed_headers" in gtfs:
+        values["gtfs_feed_headers"] = {url: dict(headers) for url, headers in gtfs["feed_headers"].items()}
     if "match_tolerance_m" in gtfs:
         values["gtfs_match_tolerance_m"] = gtfs["match_tolerance_m"]
     if "min_name_similarity" in gtfs:
@@ -133,7 +140,7 @@ def load_transport_config(path: str | Path, city_name: str) -> TransportConfig:
         values["gtfs_window"] = tuple(int(hour) for hour in gtfs["window"])
     if "frequent_dep_per_hr" in gtfs:
         values["frequent_dep_per_hr"] = float(gtfs["frequent_dep_per_hr"])
-    for key in ["centre_lon", "centre_lat"]:
+    for key in ["centre_lon", "centre_lat", "centre_label"]:
         if key in raw:
             values[key] = raw[key]
     for key in ["centre_lon", "centre_lat", "osm_pbf"]:
