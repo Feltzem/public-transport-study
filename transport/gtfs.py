@@ -539,6 +539,17 @@ def _hours(values: pd.Series) -> pd.Series:
     return pd.to_numeric(values.astype(str).str.split(":", n=1).str[0], errors="coerce")
 
 
+def r5_feed_path(feed_path: Path, city_slug: str) -> Path:
+    """Path for the clipped R5 copy of ``feed_path``, unique per city and feed content.
+
+    r5py copies every input into its own cache directory under the file's base
+    name and reuses an existing copy of that name. Two cities' clipped feeds
+    must therefore never share a name, and a changed feed must get a new one.
+    """
+    digest = file_sha256(feed_path)[:12]
+    return feed_path.with_name(f"{city_slug}_{feed_path.stem}_{digest}_r5.zip")
+
+
 def prepare_r5_feed(
     feed_path: Path,
     output_path: Path,

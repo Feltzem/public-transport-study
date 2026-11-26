@@ -10,7 +10,7 @@ from datetime import date
 from typing import Any
 
 from .config import TransportConfig
-from .gtfs import download_gtfs_feeds, feed_provenance, prepare_r5_feed
+from .gtfs import download_gtfs_feeds, feed_provenance, prepare_r5_feed, r5_feed_path
 from .io import load_transport_inputs, write_json
 from .travel_time import compute_travel_time_metrics
 
@@ -32,7 +32,7 @@ def run_gtfs_pipeline(
     feeds = download_gtfs_feeds(config, force=force_download)
     min_lon, min_lat, max_lon, max_lat = inputs["boundary"].to_crs("EPSG:4326").total_bounds
     bbox = (min_lon - 0.05, min_lat - 0.05, max_lon + 0.05, max_lat + 0.05)
-    routing_feeds = [prepare_r5_feed(path, path.with_name(f"{path.stem}_r5.zip"), bbox=bbox) for path in feeds]
+    routing_feeds = [prepare_r5_feed(path, r5_feed_path(path, slug), bbox=bbox) for path in feeds]
     travel_metrics, centre_matrix, all_cells_matrix = compute_travel_time_metrics(
         urban_cells,
         osm_pbf=config.osm_pbf,

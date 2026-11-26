@@ -11,7 +11,7 @@ from shapely.geometry import LineString, Polygon
 
 from transport.coverage import calculate_coverage
 from transport.isochrones import build_station_isochrones, dissolve_buffered_lines, polygon_from_distances, reachable_edge_geometries
-from transport.gtfs import consolidate_stations, match_gtfs_to_osm_stations, parse_feed_departures, prepare_r5_feed, route_mode
+from transport.gtfs import consolidate_stations, match_gtfs_to_osm_stations, parse_feed_departures, prepare_r5_feed, r5_feed_path, route_mode
 from transport.network import CsrGraph, nearest_nodes, super_source_distances
 from transport.travel_time import _weighted_quantile, cumulative_accessibility
 from publish_outputs import _check_consistency
@@ -425,6 +425,20 @@ def test_whitespace_parent_station_keeps_each_stop_as_its_own_station(tmp_path):
         stops = pd.read_csv(archive.open("stops.txt"), dtype=str, keep_default_na=False)
     assert set(stops["stop_id"]) == {"p1", "p2", "end"}
     assert set(stops["parent_station"]) == {""}
+
+
+def test_r5_feed_names_are_unique_per_city_and_feed_content(tmp_path):
+    # r5py caches inputs by base name, so same-named feeds from two cities must not collide.
+    oslo, helsinki = tmp_path / "oslo" / "feed_1.zip", tmp_path / "helsinki" / "feed_1.zip"
+    for path, content in [(oslo, b"oslo timetable"), (helsinki, b"helsinki timetable")]:
+        path.parent.mkdir()
+        path.write_bytes(content)
+    oslo_r5, helsinki_r5 = r5_feed_path(oslo, "oslo"), r5_feed_path(helsinki, "helsinki")
+    assert oslo_r5.parent == oslo.parent and oslo_r5.name.startswith("oslo_feed_1_")
+    assert oslo_r5.name != helsinki_r5.name
+    assert r5_feed_path(oslo, "oslo") == oslo_r5  # stable for unchanged content
+    oslo.write_bytes(b"oslo timetable, new version")
+    assert r5_feed_path(oslo, "oslo").name != oslo_r5.name  # a new feed gets a new name
 
 
 def test_feed_headers_expand_from_environment_and_stay_out_of_provenance(tmp_path, monkeypatch):
