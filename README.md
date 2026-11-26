@@ -39,7 +39,8 @@ The workflow has six main parts:
 5. **Door-to-door travel time** (`calc_gtfs.py`)
    - Build an r5py network from each city OSM PBF and GTFS feed set.
    - Route population-cell centroids to the city centre and, by default in the batch run, to all other cells.
-   - Report population-weighted centre travel times, 30/45-minute centre shares, and cumulative accessibility: the population-weighted share of all urban residents reachable within 30/45 minutes.
+   - Report the population-weighted median travel time to the centre as the headline measure; the shares of residents reaching the centre within 30 and 45 minutes are secondary.
+   - Also report cumulative accessibility: the population-weighted share of all urban residents reachable within 30/45 minutes.
 
 6. **Publication**
    - Harmonise all city schemas in equal-area EPSG:3035.
@@ -60,14 +61,14 @@ These are deliberately separated. A station can sit outside the built-up polygon
 | --- | --- |
 | `calc_urban_area.py` | Command-line runner for the reusable urban-area pipeline. Prefer this for production-style runs. |
 | `calc_transport.py` | OSM rail, walk-network isochrone, station-filtering, and weighted-coverage runner. |
-| `calc_gtfs.py` | GTFS frequency and optional r5py travel-time runner. |
+| `calc_gtfs.py` | r5py door-to-door travel-time runner (GTFS frequency runs in `calc_transport.py`). |
 | `run_study.py` | Resumable six-city stage runner with config/code fingerprints, per-city logs, and timings. |
 | `publish_outputs.py` | Atomic EPSG:3035 publisher for the consolidated ArcGIS GeoPackage and summary CSV. |
 | `README.html` | Self-contained interactive visual walkthrough of the full process. |
 | `calc_urban_area.ipynb` | Thin notebook entry point plus older exploratory diagnostics. The top cells call `run_urban_area_pipeline`; package code is the source of truth. |
 | `urban_area/` | Reusable implementation for config, I/O, scoring, growth, refinement, validation, and catchment helpers. |
 | `city_config.example.json` | Six-city settings for Oslo, Stockholm, Copenhagen, Helsinki, Brussels, and Paris. |
-| `tests/test_urban_area_units.py` | Synthetic geospatial unit tests for the key edge cases. |
+| `tests/` | 53 synthetic unit tests for the urban and transport edge cases. |
 | `get_ms_buildings.py` | Downloads Microsoft Global ML Building Footprints for a configured city. |
 | `road-density.py` | Standalone road-density aggregation using the shared CRS and clipping logic. |
 
@@ -144,13 +145,13 @@ Important settings:
 | `building_gpkg`, `building_layer` | Building footprint or point-building input. Default layer name is `{slug}_buildings`. |
 | `road_gpkg`, `road_layer` | Road/street input. Default layer name is `{slug}_roads`. |
 | `building_mode` | `auto`, `footprint`, `point`, or `required_footprint`. |
-| `centre_lon`, `centre_lat` | City-centre point: selects the study urban centre and is the travel-time destination. |
+| `centre_lon`, `centre_lat`, `centre_label` | City-centre point: selects the study urban centre and is the travel-time destination (Oslo: Jernbanetorget, by Oslo S). |
 | `growth.method` | `degurba` (default, absolute thresholds) or `score` (legacy). |
 | `growth.centre_density_min`, `growth.builtup_share_min`, `growth.centre_min_population` | DEGURBA urban-centre thresholds. |
 | `growth.keep_other_centres` | Also keep urban centres that do not contain the city-centre point. |
 | `growth.strictness`, `growth.keep_largest_component` | Legacy score-method settings. |
 | `water_mask.min_land_fraction` | Cells with less land than this and no buildings are treated as water. |
-| `gtfs.service_date`, `gtfs.window`, `gtfs.frequent_dep_per_hr` | Pinned representative date (outside school holidays), departure window, and frequency threshold. |
+| `gtfs.service_date`, `gtfs.window`, `gtfs.frequent_dep_per_hr` | Pinned representative date (outside school holidays; Tuesday 2026-12-08 for every city), departure window, and frequency threshold. |
 | `transport.bus_walking_distance_m` | Walking distance for the all-mode stop tier (default 500 m). |
 | `refinement.enabled` | Enables edge-cell subdivision and refined boundary output. |
 
@@ -296,7 +297,7 @@ The `water_guard` option blocks growth through cells with negligible population 
 
 OSM holds the sea only as coastline lines (land on the left), so `sea_polygons_from_coastline()` cuts the envelope along the coastline and votes each piece sea or land from probe points either side of the coastline; truncated coastlines fall back to land. Only polygons carrying a water tag count as water: closed coastline rings are islands, and land-tagged member ways of water relations (lake islands) stay land. The cached layer is `water_mask_v3_{slug}`.
 
-The water mask annotates `land_area_sqm` on every cell before metrics are calculated, so densities and coverage are measured on land. A cell is flagged `is_water` only when less than `min_land_fraction` (10%) of it is land and it has under 100 m² of buildings. Published cells are clipped to land, but **population and building area are not scaled by the clip**, because residents and buildings are already on the land part of the cell. The earlier rule (hard-excluding any cell at least 50% water and area-scaling population on clip) removed more than 13,000 Oslo residents on the waterfront.
+The water mask annotates `land_area_sqm` on every cell before metrics are calculated, so densities and coverage are measured on land. A cell is flagged `is_water` only when less than `min_land_fraction` (10%) of it is land and it has under 100 m² of buildings. Published cells are clipped to land, but **population and building area are not scaled by the clip**, because residents and buildings are already on the land part of the cell.
 
 After growth, enclosed holes with some population or building evidence can be filled. Component handling then either:
 
@@ -317,7 +318,7 @@ The refinement step:
 4. aggregates buildings and roads to subcells;
 5. keeps subcells with local presence and either enough building area/points or enough local street density;
 6. recombines non-edge parent cells with qualifying refined subcells;
-7. reapplies component retention and recomputes urban metrics.
+7. reapplies component retention and recomputes urban metrics. In the DEGURBA method (without `keep_other_centres`) only the largest refined component is kept, so a lobe of the urban centre that trimming detaches is dropped. In Oslo this removes 8,142 residents, 5,183 of them around Oppegård; trimming itself removes 921.
 
 Refined cells are not H3 cells. They preserve `parent_cell_id`, set `is_refined = true`, set `h3` to missing where applicable, and carry `population_allocation_method`.
 
@@ -340,40 +341,45 @@ Typical station-filtering logic should be:
 
 ## Outputs
 
-### Revised Oslo run (2026-10-18)
+### Oslo run (service date 2026-12-08)
 
-Oslo has been re-run with DEGURBA classification, land-area densities with sea polygons, GTFS-built stations, per-direction frequency, and the all-mode tier. The other five cities still hold the earlier score-method results (flagged `score_legacy` in `city_summary.csv`) and must be re-run before comparison.
+Oslo is run with DEGURBA classification, land-area densities with the `water_mask_v3_oslo` sea polygons, GTFS-built stations, per-direction frequency, the all-mode tier, and r5py travel times. Timetables are the Entur national feed archived at `Input Data/GTFS/oslo/2026-11-26/feed_1.zip` (SHA-256 `565b1f8f…`, recorded in `data/provenance/oslo_transport_provenance.json`). The city-centre point is Jernbanetorget, by Oslo S (59.911 N, 10.75029 E). All numbers below are read from `data/provenance/oslo_*.json` and match `../Output/city_summary.csv`.
 
-| Oslo measure | Earlier (2026-08-09) | Revised |
-| --- | ---: | ---: |
-| Urban area (km²) | 244.72 | 191.30 |
-| Urban population | 792,054 | 714,052 |
-| Rail, metro, and tram stations | 305 | 205 (99 metro, 72 tram, 34 rail) |
-| Within 15 min walk of a station | 58.59%* | 63.84% |
-| Within 15 min of a frequent station (≥6/h busiest direction) | 42.86%* | 53.49% |
-| Within 500 m walk of any stop | – | 72.16% |
-| Frequent service of any mode | – | 70.79% |
-| Median PT time to centre / within 45 min | – | 35 min / 82.9% |
-| Urban residents reachable in 30 / 45 min (average resident) | – | 9.0% / 33.9% |
+| Oslo measure | Value |
+| --- | ---: |
+| Urban area | 203.96 km² |
+| Urban population | 741,091 (76.97% of the envelope) |
+| Rail, metro, and tram stations | 210 (99 metro, 72 tram, 39 rail); 164 frequent |
+| Within 15 min walk of a station | 61.44% |
+| Within 15 min of a frequent station (≥6/h busiest direction) | 51.70% |
+| Stops of any mode | 1,241 (809 frequent) |
+| Within 500 m walk of any stop | 72.02% |
+| Frequent service of any mode | 69.53% |
+| **Median PT time to the centre** | **34 min** |
+| Reach the centre within 30 / 45 min | 34.26% / 85.95% |
+| Urban residents reachable in 30 / 45 min (average resident) | 8.40% / 31.98% |
 
-\* Computed on the pre-water-mask urban population (804,250), with all tram stops at zero departures.
+Catchment buffer sensitivity (`catchment_sensitivity.py`, `data/provenance/oslo_catchment_sensitivity.json`):
 
-Runtimes on cached inputs: urban 1.3 min, transport 8.8 min (the 211 catchments take seconds with scipy), travel time 9.1 min including the one-off clipped-feed preparation and the all-to-all matrix.
+| Buffer | 25 m | 50 m | 100 m |
+| --- | ---: | ---: | ---: |
+| Within 15 min of a rail, metro, or tram station | 61.46% | 71.56% | 76.42% |
+| Within 500 m of any stop | 72.02% | 85.46% | 92.69% |
 
-### Water-masked six-city run (2026-08-09, superseded for Oslo)
+The sensitivity script dissolves all catchments in one multi-source pass, so its 25 m rail row differs from the transport stage's per-station union in the second decimal (61.46% against 61.44%).
 
-The final cached urban pass completed all six cities in 863.2 seconds (14m 23s). Timings exclude the one-off Microsoft-footprint and Geofabrik PBF downloads.
+Runtimes on cached inputs: urban 1.4 min, transport 31.6 min, travel time 10.9 min including the clipped-feed preparation and the all-to-all matrix.
+
+### Water-masked score-method urban run (2026-08-09)
+
+Stockholm, Copenhagen, Brussels, and Paris still hold these score-method results (flagged `score_legacy` in `city_summary.csv`) and must be re-run with DEGURBA before comparison. Helsinki has a DEGURBA urban stage but no transport stages yet. Timings exclude the one-off Microsoft-footprint and Geofabrik PBF downloads.
 
 | City | Runtime | Urban area (km²) | Urban population | Urban share | Published urban cells |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Stockholm | 108.7 s | 317.68 | 1,362,317 | 63.70% | 4,492 |
 | Copenhagen | 136.6 s | 260.71 | 1,490,353 | 59.50% | 2,550 |
-| Helsinki | 174.5 s | 311.84 | 815,055 | 79.39% | 4,386 |
 | Brussels | 38.2 s | 173.13 | 1,314,822 | 74.94% | 2,311 |
 | Paris | 311.1 s | 1,058.01 | 8,608,895 | 73.41% | 10,007 |
-| Oslo | 94.1 s | 244.72 | 792,054 | 82.26% | 3,431 |
-
-These are the water-masked results. The earlier Oslo no-water regression gate remains 251.10 km², 804,251 people, and 83.5%; it is retained as a code-performance regression, not the current published result.
 
 The principal working and published files are:
 
@@ -386,8 +392,6 @@ The principal working and published files are:
 | Per-city run state, provenance, and validation | `data/provenance/` |
 | ArcGIS-facing consolidated layers (EPSG:3035) | `../Output/pt_study.gpkg` |
 | Six-city comparison table | `../Output/city_summary.csv` |
-
-For Oslo specifically, the final cached urban stage takes about 1m34s. The first uncached transport/catchment build took about 2h08m including its checkpoint resume; the cached GTFS frequency stage took about 3m31s. Oslo's weighted 15-minute coverage is 58.59%, and frequent-service coverage is 42.86%.
 
 When `write_outputs = true`, `save_pipeline_outputs()` writes:
 
@@ -424,10 +428,10 @@ Useful tests and checks:
 
 ```powershell
 conda activate pt_study
-pytest tests
+python -m pytest tests -q -p no:cacheprovider
 ```
 
-The synthetic test suite currently covers:
+The synthetic test suite has 53 tests (`tests/test_urban_area_units.py` and `tests/test_transport_units.py`). It covers:
 
 - area-weighted population clipping;
 - population-density scoring;
@@ -439,8 +443,14 @@ The synthetic test suite currently covers:
 - edge adjacency excluding point-only contacts;
 - dasymetric allocation order;
 - preservation of population allocation metadata after refinement;
+- DEGURBA centre thresholds, gap filling, hole filling, and selection of the centre containing the city point;
+- land-area densities, land clipping without population loss, sea on the right of coastline direction, islands, and truncated coastlines;
 - dissolved catchment coverage avoiding double counting;
-- station filtering with catchment population and share denominators.
+- station filtering with catchment population and share denominators;
+- extended GTFS route types, busiest-direction frequency without final stops, and direction inferred from the bearing to the next stop;
+- station consolidation, mode-aware matching, and parent-station edge cases;
+- agreement of the scipy router with networkx, cumulative accessibility, and the weighted median;
+- the publisher's consistency check between stages.
 
 For research validation, compare outputs against external references where available, such as GHSL/DEGURBA-style built-up classifications, OECD Functional Urban Areas, national urban-area datasets, or manually reviewed city boundaries. `benchmark_ghsl.py` automates the GHSL comparison once the benchmark layer is supplied; the other comparisons remain manual.
 
@@ -451,7 +461,7 @@ For research validation, compare outputs against external references where avail
 - `road-density.py` is useful when you only need road aggregation using the same CRS/clipping assumptions.
 - `get_ms_buildings.py` uses WGS84 tile bounds for Microsoft building downloads, filters by the city AOI, then calculates footprint area in the city metric CRS.
 - `model_census.ipynb`, `get_metro_data.ipynb`, and `osm_experiments.ipynb` are retained under `../Archive/notebooks/` as historical references.
-- `transport/` is the source of truth for OSM rail/station, isochrone, GTFS, and r5py analysis; the regenerated Oslo transport gate was completed on 2026-08-09.
+- `transport/` is the source of truth for GTFS stations, isochrones, frequency, and r5py analysis.
 
 ## Data Directory
 
