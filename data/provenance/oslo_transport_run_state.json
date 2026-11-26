@@ -1,8 +1,8 @@
 {
   "complete": true,
-  "completed_at_utc": "2026-10-18T05:45:21.265044+00:00",
-  "config_hash": "7fe5aec77f1d5dc40bd1fef05efbc38ddd416a9d7e7879a8aaad089635e5c934",
-  "upstream_fingerprint": "f9f1c898d1353849bb7b7bd3a979e1c99a19878fb2aa9d4c7e0ad4b0cecccfc3",
-  "code_version": "d6cb4c57f8d13e0a49ef7f0a081a94aa4773a58c:a0dfad7c01bf57e9",
-  "elapsed_seconds": 528.8856875998899
+  "completed_at_utc": "2026-11-25T23:10:44.978246+00:00",
+  "config_hash": "59b257682004db5af75109e1e64e4a154d28ad474914f07ad6153b0ca00193d6",
+  "upstream_fingerprint": "2c4dfb14a518d9687512a54996c5c38d98e946c855df45f036fc38ddb522fb82",
+  "code_version": "ba7b3856460b109a5d4a638a2e124336f63ddfe7:2e889a057578885f",
+  "elapsed_seconds": 1893.1670457000146
 }

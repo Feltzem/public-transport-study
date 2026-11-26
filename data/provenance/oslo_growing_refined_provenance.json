@@ -16,8 +16,9 @@
     "building_gpkg": "data\\building_footprints.gpkg",
     "building_layer": null,
     "building_mode": "footprint",
-    "centre_lat": 59.9139,
-    "centre_lon": 10.7522,
+    "centre_label": "Jernbanetorget (Oslo S / Jernbanetorget T-bane)",
+    "centre_lat": 59.911,
+    "centre_lon": 10.75029,
     "city_name": "Oslo, Norway",
     "city_slug": "oslo",
     "data_dir": "data",
@@ -123,7 +124,7 @@
     ],
     "scoring_column": "local_road_density_km_per_sqkm"
   },
-  "run_started_at_utc": "2026-10-18T05:36:19.488179+00:00",
+  "run_started_at_utc": "2026-11-25T22:39:11.197342+00:00",
   "station_filtering_note": "Use catchment population/intersection logic, not station point-in-polygon tests",
   "urban_area_type": "morphological_built_up_area",
   "urban_detection": {
@@ -142,10 +143,10 @@
   "water_mask": {
     "densities_on_land_area": true,
     "enabled": true,
-    "layer": "water_mask_v2_oslo",
+    "layer": "water_mask_v3_oslo",
     "min_land_fraction": 0.1,
     "population_scaled_by_clip": false,
     "published_geometry_clipped": true
   },
-  "written_at_utc": "2026-10-18T05:36:19.896095+00:00"
+  "written_at_utc": "2026-11-25T22:39:11.700858+00:00"
 }

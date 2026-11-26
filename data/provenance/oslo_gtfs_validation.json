@@ -1,17 +1,17 @@
 {
   "summary": {
-    "access_pop_30min_pct": 8.965558521312115,
-    "access_pop_45min_pct": 33.91095073143942,
+    "access_pop_30min_pct": 8.40078189015116,
+    "access_pop_45min_pct": 31.975461843973488,
     "city": "Oslo, Norway",
     "city_slug": "oslo",
     "departure_window": "07:00-09:00",
-    "median_pt_to_direct_speed_ratio": 0.32090069067645194,
-    "median_tt_centre_min": 35.0,
-    "pct_centre_30min": 32.23352059631084,
-    "pct_centre_45min": 82.91426685356134,
-    "service_date": "2026-10-20",
-    "unreachable_centre_population_pct": 0.005289136088752821,
-    "urban_population": 714051.6448375051
+    "median_pt_to_direct_speed_ratio": 0.3440058933891822,
+    "median_tt_centre_min": 34.0,
+    "pct_centre_30min": 34.26184042313723,
+    "pct_centre_45min": 85.9535997285341,
+    "service_date": "2026-12-08",
+    "unreachable_centre_population_pct": 0.005096159245158955,
+    "urban_population": 741090.7199438505
   },
-  "written_at_utc": "2026-10-18T05:54:27.831243+00:00"
+  "written_at_utc": "2026-11-25T23:21:41.055717+00:00"
 }

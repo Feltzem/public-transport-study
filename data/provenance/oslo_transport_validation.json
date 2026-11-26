@@ -1,47 +1,47 @@
 {
   "all_modes": {
-    "covered_population_any_stop": 515278.8296274704,
-    "covered_population_frequent_any_mode": 505461.87741635035,
-    "n_stops_all_modes": 1155,
-    "n_stops_frequent": 775,
-    "pct_any_stop": 72.16268365920942,
-    "pct_frequent_any_mode": 70.78785982369342,
+    "covered_population_any_stop": 533767.0045848796,
+    "covered_population_frequent_any_mode": 515252.06988789176,
+    "n_stops_all_modes": 1241,
+    "n_stops_frequent": 809,
+    "pct_any_stop": 72.02451605726772,
+    "pct_frequent_any_mode": 69.52618026669263,
     "stop_walking_distance_m": 500,
     "stops_by_mode": {
-      "bus": 945,
+      "bus": 1026,
       "ferry": 5,
       "metro": 99,
-      "rail": 34,
+      "rail": 39,
       "tram": 72
     }
   },
-  "candidate_station_count": 211,
-  "catchment_count": 205,
+  "candidate_station_count": 214,
+  "catchment_count": 210,
   "city": "Oslo, Norway",
   "coverage": {
-    "covered_population": 455831.25030087424,
-    "legacy_centroid_pct": 62.25688255350204,
-    "legacy_centroid_population": 444546.293897835,
-    "pct_within_15min": 63.83729434649039,
-    "urban_population": 714051.6448375051
+    "covered_population": 455330.4399641602,
+    "legacy_centroid_pct": 59.59263973469639,
+    "legacy_centroid_population": 441635.52284340665,
+    "pct_within_15min": 61.4405804458945,
+    "urban_population": 741090.7199438505
   },
-  "dep_per_hr_mean": 10.463414634146341,
+  "dep_per_hr_mean": 10.459523809523809,
   "dep_per_hr_median": 8.0,
   "frequency": {
-    "covered_population": 381944.8424050275,
+    "covered_population": 383111.6037750171,
     "frequency_definition": "departures per hour in the busiest direction; final stops excluded",
     "frequent_threshold_dep_per_hr": 6.0,
-    "pct_within_15min_frequent": 53.48980639795958,
-    "service_date": "2026-10-20",
+    "pct_within_15min_frequent": 51.69564177028744,
+    "service_date": "2026-12-08",
     "window": "07:00-09:00"
   },
-  "frequent_station_count": 160,
+  "frequent_station_count": 164,
   "kept_by_mode": {
     "metro": 99,
-    "rail": 34,
+    "rail": 39,
     "tram": 72
   },
-  "kept_station_count": 205,
+  "kept_station_count": 210,
   "non_empty": {
     "all_mode_stops": true,
     "all_mode_tiers": true,
@@ -53,6 +53,6 @@
     "rail_stations": true
   },
   "rail_line_count": 2876,
-  "written_at_utc": "2026-10-18T05:45:21.130547+00:00",
+  "written_at_utc": "2026-11-25T23:10:44.809409+00:00",
   "zero_departure_station_count": 3
 }

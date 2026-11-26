@@ -3,47 +3,47 @@
   "rows": [
     {
       "buffer_m": 25.0,
-      "pct_covered": 63.85065119063725,
-      "seconds": 65,
+      "pct_covered": 61.456754142539026,
+      "seconds": 69.4,
       "tier": "rail_15min",
-      "walk_distance_m": 1125.0
+      "walk_distance_m": 1125
     },
     {
       "buffer_m": 25.0,
-      "pct_covered": 72.16268365920942,
-      "seconds": 80,
+      "pct_covered": 72.02451605726772,
+      "seconds": 85.6,
       "tier": "any_stop",
-      "walk_distance_m": 500.0
+      "walk_distance_m": 500
     },
     {
       "buffer_m": 50.0,
-      "pct_covered": 74.3591446754763,
-      "seconds": 44,
+      "pct_covered": 71.56245175541737,
+      "seconds": 44.2,
       "tier": "rail_15min",
-      "walk_distance_m": 1125.0
+      "walk_distance_m": 1125
     },
     {
       "buffer_m": 50.0,
-      "pct_covered": 85.49483368417467,
-      "seconds": 63,
+      "pct_covered": 85.46280141779519,
+      "seconds": 56.6,
       "tier": "any_stop",
-      "walk_distance_m": 500.0
+      "walk_distance_m": 500
     },
     {
       "buffer_m": 100.0,
-      "pct_covered": 79.336983821084,
-      "seconds": 40,
+      "pct_covered": 76.41886998173867,
+      "seconds": 39.4,
       "tier": "rail_15min",
-      "walk_distance_m": 1125.0
+      "walk_distance_m": 1125
     },
     {
       "buffer_m": 100.0,
-      "pct_covered": 92.77336453496794,
-      "seconds": 51,
+      "pct_covered": 92.68572926709503,
+      "seconds": 48.2,
       "tier": "any_stop",
-      "walk_distance_m": 500.0
+      "walk_distance_m": 500
     }
   ],
-  "urban_population": 714051.6448375051,
-  "written_at_utc": "2026-10-18T08:25:12.055488+00:00"
+  "urban_population": 741090.7199438505,
+  "written_at_utc": "2026-11-26T01:16:47.705963+00:00"
 }
