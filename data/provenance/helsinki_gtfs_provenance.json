@@ -1,0 +1,37 @@
+{
+  "centre": {
+    "label": "Rautatientori (Helsinki Central / Rautatientori metro)",
+    "lat": 60.17124,
+    "lon": 24.9441
+  },
+  "feed_paths": [
+    "cache\\gtfs\\helsinki\\feed_1.zip"
+  ],
+  "gtfs_feed_files": [
+    {
+      "bytes": 93010474,
+      "path": "cache\\gtfs\\helsinki\\feed_1.zip",
+      "sha256": "22321a9cd6a62a0f0265917c1ad785567cffb05ce6b759a0ae3b19980d3f9f2b",
+      "source": "D:/Public Transport Study/Input Data/GTFS/helsinki/2026-11-26/feed_1.zip"
+    }
+  ],
+  "outputs": {
+    "travel_time_all_cells": "data\\travel_time_all_cells_helsinki.parquet",
+    "travel_time_to_centre": "data\\travel_time_to_centre_helsinki.parquet"
+  },
+  "summary": {
+    "access_pop_30min_pct": 7.802884102221686,
+    "access_pop_45min_pct": 31.297945872785508,
+    "city": "Helsinki, Finland",
+    "city_slug": "helsinki",
+    "departure_window": "07:00-09:00",
+    "median_pt_to_direct_speed_ratio": 0.44674126523956104,
+    "median_tt_centre_min": 38.0,
+    "pct_centre_30min": 22.31005461307107,
+    "pct_centre_45min": 74.79554077191915,
+    "service_date": "2026-12-08",
+    "unreachable_centre_population_pct": 0.017573936263485555,
+    "urban_population": 722691.6495584995
+  },
+  "written_at_utc": "2026-11-26T04:07:01.131702+00:00"
+}

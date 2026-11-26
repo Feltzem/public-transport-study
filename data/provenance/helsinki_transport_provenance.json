@@ -1,0 +1,90 @@
+{
+  "city_name": "Helsinki, Finland",
+  "city_slug": "helsinki",
+  "config": {
+    "all_modes": [
+      "rail",
+      "metro",
+      "tram",
+      "bus",
+      "ferry",
+      "funicular",
+      "cable"
+    ],
+    "boundaries_layer": "cities_study",
+    "boundaries_path": "D:\\Public Transport Study\\Input Data\\Boundaries\\Boundaries.gpkg",
+    "building_gpkg": "data\\building_footprints.gpkg",
+    "building_layer": null,
+    "bus_walking_distance_m": 500,
+    "cache_dir": "cache",
+    "centre_label": "Rautatientori (Helsinki Central / Rautatientori metro)",
+    "centre_lat": 60.17124,
+    "centre_lon": 24.9441,
+    "city_name": "Helsinki, Finland",
+    "city_slug": "helsinki",
+    "data_dir": "data",
+    "frequent_dep_per_hr": 6.0,
+    "gtfs_feed_headers": {},
+    "gtfs_feed_urls": [
+      "D:/Public Transport Study/Input Data/GTFS/helsinki/2026-11-26/feed_1.zip"
+    ],
+    "gtfs_match_tolerance_m": 500.0,
+    "gtfs_min_name_similarity": 0.45,
+    "gtfs_service_date": "2026-12-08",
+    "gtfs_window": [
+      7,
+      9
+    ],
+    "isochrone_buffer_m": 25,
+    "isochrone_gpkg": "data\\station_isochrones.gpkg",
+    "metric_crs": "EPSG:3067",
+    "min_station_population": 500,
+    "min_station_urban_share": 0.25,
+    "network_type": "walk",
+    "osm_pbf": "data\\osm\\helsinki.osm.pbf",
+    "population_gpkg": "data\\population_density.gpkg",
+    "population_layer": "population_density_cities_used",
+    "rail_gpkg": "data\\rail_lines.gpkg",
+    "rail_modes": [
+      "rail",
+      "subway",
+      "light_rail",
+      "tram"
+    ],
+    "station_merge_distance_m": 150.0,
+    "station_source": "gtfs",
+    "urban_areas_gpkg": "data\\urban_areas.gpkg",
+    "walking_distance_m": 1125
+  },
+  "coverage_method": "building_weighted_with_area_weighted_fallback",
+  "gtfs_feed_files": [
+    {
+      "bytes": 93010474,
+      "path": "cache\\gtfs\\helsinki\\feed_1.zip",
+      "sha256": "22321a9cd6a62a0f0265917c1ad785567cffb05ce6b759a0ae3b19980d3f9f2b",
+      "source": "D:/Public Transport Study/Input Data/GTFS/helsinki/2026-11-26/feed_1.zip"
+    }
+  ],
+  "gtfs_feeds": [
+    "cache\\gtfs\\helsinki\\feed_1.zip"
+  ],
+  "legacy_centroid_pct_this_run": 34.209891695507906,
+  "legacy_oslo_reference_pct": null,
+  "metric_crs": "EPSG:3067",
+  "network_cache_key": "helsinki_walk_EPSG3067.graphml",
+  "outputs": {
+    "all_mode_stops": "data\\rail_lines.gpkg/pt_stops_all_modes_helsinki",
+    "all_mode_tiers": "data\\station_isochrones.gpkg/catchments_all_modes_helsinki",
+    "coverage_cells": "data\\station_isochrones.gpkg/coverage_cells_15min_helsinki",
+    "frequency_cells": "data\\station_isochrones.gpkg/coverage_cells_frequency_helsinki",
+    "frequent_any_cells": "data\\station_isochrones.gpkg/coverage_cells_frequent_any_mode_helsinki",
+    "isochrones": "data\\station_isochrones.gpkg/isochrones_15min_helsinki",
+    "rail_lines": "data\\rail_lines.gpkg/rail_lines_helsinki",
+    "rail_stations": "data\\rail_lines.gpkg/rail_stations_helsinki"
+  },
+  "run_started_at_utc": "2026-11-26T03:50:23.683020+00:00",
+  "station_filter_method": "walking_catchment_population_or_urban_share",
+  "station_source": "gtfs",
+  "weighted_pct_this_run": 36.517662763324594,
+  "written_at_utc": "2026-11-26T03:50:25.286948+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "summary": {
+    "access_pop_30min_pct": 7.802884102221686,
+    "access_pop_45min_pct": 31.297945872785508,
+    "city": "Helsinki, Finland",
+    "city_slug": "helsinki",
+    "departure_window": "07:00-09:00",
+    "median_pt_to_direct_speed_ratio": 0.44674126523956104,
+    "median_tt_centre_min": 38.0,
+    "pct_centre_30min": 22.31005461307107,
+    "pct_centre_45min": 74.79554077191915,
+    "service_date": "2026-12-08",
+    "unreachable_centre_population_pct": 0.017573936263485555,
+    "urban_population": 722691.6495584995
+  },
+  "written_at_utc": "2026-11-26T04:07:01.134077+00:00"
+}

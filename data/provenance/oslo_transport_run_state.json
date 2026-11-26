@@ -1,8 +1,8 @@
 {
   "complete": true,
-  "completed_at_utc": "2026-11-25T23:10:44.978246+00:00",
+  "completed_at_utc": "2026-11-26T03:32:29.113719+00:00",
   "config_hash": "59b257682004db5af75109e1e64e4a154d28ad474914f07ad6153b0ca00193d6",
   "upstream_fingerprint": "2c4dfb14a518d9687512a54996c5c38d98e946c855df45f036fc38ddb522fb82",
-  "code_version": "ba7b3856460b109a5d4a638a2e124336f63ddfe7:2e889a057578885f",
-  "elapsed_seconds": 1893.1670457000146
+  "code_version": "207721e4248c315c626bc6a03844510f1d2be99f:8573f12047842794",
+  "elapsed_seconds": 551.0059339000145
 }

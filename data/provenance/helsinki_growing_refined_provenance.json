@@ -13,8 +13,9 @@
     "building_gpkg": "data\\building_footprints.gpkg",
     "building_layer": null,
     "building_mode": "footprint",
-    "centre_lat": 60.1699,
-    "centre_lon": 24.9384,
+    "centre_label": "Rautatientori (Helsinki Central / Rautatientori metro)",
+    "centre_lat": 60.17124,
+    "centre_lon": 24.9441,
     "city_name": "Helsinki, Finland",
     "city_slug": "helsinki",
     "data_dir": "data",
@@ -120,7 +121,7 @@
     ],
     "scoring_column": "local_road_density_km_per_sqkm"
   },
-  "run_started_at_utc": "2026-10-18T15:17:37.896026+00:00",
+  "run_started_at_utc": "2026-11-26T03:44:45.222728+00:00",
   "station_filtering_note": "Use catchment population/intersection logic, not station point-in-polygon tests",
   "urban_area_type": "morphological_built_up_area",
   "urban_detection": {
@@ -144,5 +145,5 @@
     "population_scaled_by_clip": false,
     "published_geometry_clipped": true
   },
-  "written_at_utc": "2026-10-18T15:17:38.349782+00:00"
+  "written_at_utc": "2026-11-26T03:44:45.725952+00:00"
 }

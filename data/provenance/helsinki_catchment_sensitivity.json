@@ -1,0 +1,49 @@
+{
+  "city": "Helsinki, Finland",
+  "rows": [
+    {
+      "buffer_m": 25.0,
+      "pct_covered": 36.51850205439743,
+      "seconds": 49.8,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125
+    },
+    {
+      "buffer_m": 25.0,
+      "pct_covered": 70.86215973739316,
+      "seconds": 101.1,
+      "tier": "any_stop",
+      "walk_distance_m": 500
+    },
+    {
+      "buffer_m": 50.0,
+      "pct_covered": 42.600017281243545,
+      "seconds": 39.3,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125
+    },
+    {
+      "buffer_m": 50.0,
+      "pct_covered": 83.98239046712219,
+      "seconds": 74.6,
+      "tier": "any_stop",
+      "walk_distance_m": 500
+    },
+    {
+      "buffer_m": 100.0,
+      "pct_covered": 46.81682043854056,
+      "seconds": 35.6,
+      "tier": "rail_15min",
+      "walk_distance_m": 1125
+    },
+    {
+      "buffer_m": 100.0,
+      "pct_covered": 90.07513564210683,
+      "seconds": 62.7,
+      "tier": "any_stop",
+      "walk_distance_m": 500
+    }
+  ],
+  "urban_population": 722691.6495584995,
+  "written_at_utc": "2026-11-26T04:13:42.614516+00:00"
+}
