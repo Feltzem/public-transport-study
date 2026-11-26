@@ -37,7 +37,7 @@ The workflow has six main parts:
    - Add an all-mode tier (bus, tram, metro, rail, ferry): population within 500 m of any stop, and within reach of frequent service of any mode.
 
 5. **Door-to-door travel time** (`calc_gtfs.py`)
-   - Build an r5py network from each city OSM PBF and GTFS feed set.
+   - Build an r5py network from each city OSM PBF and GTFS feed set. Each feed is first clipped to the city and written as `{slug}_{feed stem}_{sha256[:12]}_r5.zip`: r5py copies inputs into its cache by base name and reuses an existing copy, so routing feeds must never share a name across cities or feed versions.
    - Route population-cell centroids to the city centre and, by default in the batch run, to all other cells.
    - Report the population-weighted median travel time to the centre as the headline measure; the shares of residents reaching the centre within 30 and 45 minutes are secondary.
    - Also report cumulative accessibility: the population-weighted share of all urban residents reachable within 30/45 minutes.
@@ -68,7 +68,7 @@ These are deliberately separated. A station can sit outside the built-up polygon
 | `calc_urban_area.ipynb` | Thin notebook entry point plus older exploratory diagnostics. The top cells call `run_urban_area_pipeline`; package code is the source of truth. |
 | `urban_area/` | Reusable implementation for config, I/O, scoring, growth, refinement, validation, and catchment helpers. |
 | `city_config.example.json` | Six-city settings for Oslo, Stockholm, Copenhagen, Helsinki, Brussels, and Paris. |
-| `tests/` | 53 synthetic unit tests for the urban and transport edge cases. |
+| `tests/` | 54 synthetic unit tests for the urban and transport edge cases. |
 | `get_ms_buildings.py` | Downloads Microsoft Global ML Building Footprints for a configured city. |
 | `road-density.py` | Standalone road-density aggregation using the shared CRS and clipping logic. |
 
@@ -368,11 +368,38 @@ Catchment buffer sensitivity (`catchment_sensitivity.py`, `data/provenance/oslo_
 
 The sensitivity script dissolves all catchments in one multi-source pass, so its 25 m rail row differs from the transport stage's per-station union in the second decimal (61.46% against 61.44%).
 
-Runtimes on cached inputs: urban 1.4 min, transport 31.6 min, travel time 10.9 min including the clipped-feed preparation and the all-to-all matrix.
+Runtimes on cached inputs (from `data/provenance/oslo_*_run_state.json`): urban 84.1 s, transport 551.0 s, travel time 621.9 s including the clipped-feed preparation and the all-to-all matrix.
+
+### Helsinki run (service date 2026-12-08)
+
+Helsinki is run with the same method and code (`code_version` matches Oslo's run-states). Timetables are the HSL regional feed archived at `Input Data/GTFS/helsinki/2026-11-26/feed_1.zip` (SHA-256 `22321a9c…`). The city-centre point is Rautatientori, by Helsinki Central station (60.17124 N, 24.9441 E). HSL route types 0 and 900 (Raide-Jokeri) are tram, 1 metro, 109 rail, 4 ferry, and 701/702/704 bus; every trip on the date has a `direction_id`. All numbers below are read from `data/provenance/helsinki_*.json` and match `../Output/city_summary.csv`.
+
+| Helsinki measure | Value |
+| --- | ---: |
+| Urban area | 246.58 km² |
+| Urban population | 722,692 (70.40% of the envelope) |
+| Rail, metro, and tram stations | 230 (30 metro, 177 tram, 23 rail); 223 frequent |
+| Within 15 min walk of a station | 36.52% |
+| Within 15 min of a frequent station (≥6/h busiest direction) | 36.16% |
+| Stops of any mode | 2,144 (1,095 frequent) |
+| Within 500 m walk of any stop | 70.86% |
+| Frequent service of any mode | 58.46% |
+| **Median PT time to the centre** | **38 min** |
+| Reach the centre within 30 / 45 min | 22.31% / 74.80% |
+| Urban residents reachable in 30 / 45 min (average resident) | 7.80% / 31.30% |
+
+Catchment buffer sensitivity (`data/provenance/helsinki_catchment_sensitivity.json`):
+
+| Buffer | 25 m | 50 m | 100 m |
+| --- | ---: | ---: | ---: |
+| Within 15 min of a rail, metro, or tram station | 36.52% | 42.60% | 46.82% |
+| Within 500 m of any stop | 70.86% | 83.98% | 90.08% |
+
+Runtimes (from `data/provenance/helsinki_*_run_state.json`): urban 112.2 s, transport 339.5 s with the walking graph cached, travel time 995.8 s including the all-to-all matrix. The first transport run, which downloaded the walking network from Overpass, took 2,699 s; the public Overpass server returned 502 (at capacity) twice before succeeding.
 
 ### Water-masked score-method urban run (2026-08-09)
 
-Stockholm, Copenhagen, Brussels, and Paris still hold these score-method results (flagged `score_legacy` in `city_summary.csv`) and must be re-run with DEGURBA before comparison. Helsinki has a DEGURBA urban stage but no transport stages yet. Timings exclude the one-off Microsoft-footprint and Geofabrik PBF downloads.
+Stockholm, Copenhagen, Brussels, and Paris still hold these score-method results (flagged `score_legacy` in `city_summary.csv`) and must be re-run with DEGURBA before comparison. Timings exclude the one-off Microsoft-footprint and Geofabrik PBF downloads.
 
 | City | Runtime | Urban area (km²) | Urban population | Urban share | Published urban cells |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -431,7 +458,7 @@ conda activate pt_study
 python -m pytest tests -q -p no:cacheprovider
 ```
 
-The synthetic test suite has 53 tests (`tests/test_urban_area_units.py` and `tests/test_transport_units.py`). It covers:
+The synthetic test suite has 54 tests (`tests/test_urban_area_units.py` and `tests/test_transport_units.py`). It covers:
 
 - area-weighted population clipping;
 - population-density scoring;
@@ -450,6 +477,7 @@ The synthetic test suite has 53 tests (`tests/test_urban_area_units.py` and `tes
 - extended GTFS route types, busiest-direction frequency without final stops, and direction inferred from the bearing to the next stop;
 - station consolidation, mode-aware matching, and parent-station edge cases;
 - agreement of the scipy router with networkx, cumulative accessibility, and the weighted median;
+- unique clipped routing-feed names per city and feed content;
 - the publisher's consistency check between stages.
 
 For research validation, compare outputs against external references where available, such as GHSL/DEGURBA-style built-up classifications, OECD Functional Urban Areas, national urban-area datasets, or manually reviewed city boundaries. `benchmark_ghsl.py` automates the GHSL comparison once the benchmark layer is supplied; the other comparisons remain manual.

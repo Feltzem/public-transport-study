@@ -71,6 +71,11 @@ TEXT_WIDTH_IN = 6.46      # A4, 2.3 cm margins: \textwidth in Report/main.tex
 CREDIT_URBAN = "Population: Kontur \u00b7 Buildings: Microsoft \u00b7 Map data \u00a9 OpenStreetMap contributors"
 CREDIT_TRANSIT = "Timetables: Entur GTFS \u00b7 Map data \u00a9 OpenStreetMap contributors"
 
+
+def transit_credit(feed: str) -> str:
+    """Credit line for maps drawn from one city's timetable feed."""
+    return f"Timetables: {feed} \u00b7 Map data \u00a9 OpenStreetMap contributors"
+
 FONT_DIRS = [
     os.environ.get("REPORT_FONT_DIR", ""),
     "C:/Users/feltz/AppData/Local/Programs/MiKTeX/fonts/opentype/adobe/sourcesans",

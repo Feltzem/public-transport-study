@@ -44,8 +44,23 @@ MAP_LABELS = {
         {"name": "Oslofjorden", "lonlat": (10.585, 59.845), "kind": "water"},
         {"name": "Bunnefjorden", "lonlat": (10.726, 59.795), "kind": "water", "rotation": 80},
     ],
+    # OSM place nodes; class checked point-in-cell against the Helsinki analysis layer.
+    "helsinki": [
+        {"name": "Kivenlahti", "lonlat": (24.6322, 60.1546)},
+        {"name": "Matinkylä", "lonlat": (24.7447, 60.1542)},
+        {"name": "Tapiola", "lonlat": (24.8032, 60.1766)},
+        {"name": "Leppävaara", "lonlat": (24.8141, 60.2197)},
+        {"name": "Espoon keskus", "lonlat": (24.6560, 60.2050)},
+        {"name": "Myyrmäki", "lonlat": (24.8522, 60.2613)},
+        {"name": "Malmi", "lonlat": (25.0086, 60.2508)},
+        {"name": "Tikkurila", "lonlat": (25.0378, 60.2923)},
+        {"name": "Itäkeskus", "lonlat": (25.0802, 60.2108)},
+        {"name": "Vuosaari", "lonlat": (25.1436, 60.2083)},
+        {"name": "Suomenlahti", "lonlat": (24.90, 60.115), "kind": "water"},
+    ],
 }
-CENTRE_SHORT_LABEL = {"oslo": "Oslo S"}
+CENTRE_SHORT_LABEL = {"oslo": "Oslo S", "helsinki": "Rautatientori"}
+FEED_CREDIT = {"oslo": "Entur GTFS", "helsinki": "HSL GTFS"}
 
 
 # --------------------------------------------------------------------------
@@ -204,7 +219,7 @@ def figure_rail(data, out: Path):
         theme.swatch(STAGE, "Study urban area beyond that walk"),
         theme.point_handle(f"City centre ({data['centre_label']})", colour=PAPER, edge=INK, size=5),
     ])
-    theme.credit(fig, theme.CREDIT_TRANSIT)
+    theme.credit(fig, theme.transit_credit(FEED_CREDIT.get(data["slug"], "GTFS")))
     theme.save(fig, out / f"{data['slug']}_rail_frequency.pdf")
 
 
@@ -231,7 +246,7 @@ def figure_coverage(data, out: Path):
     ], y=0.97)
     key.text(0.70, 0.77, "Percentages: share of all urban residents.\nFrequent: at least 6 departures per hour.",
              transform=key.transAxes, ha="left", va="top", fontsize=6.4, color=INK_2, linespacing=1.35)
-    theme.credit(fig, theme.CREDIT_TRANSIT)
+    theme.credit(fig, theme.transit_credit(FEED_CREDIT.get(data["slug"], "GTFS")))
     theme.save(fig, out / f"{data['slug']}_coverage.pdf")
 
 
@@ -265,7 +280,7 @@ def figure_travel_time(data, out: Path):
              transform=key.transAxes, ha="left", va="top", fontsize=6.6, color=INK, linespacing=1.35)
     if g.get("unreachable_centre_population_pct", 0) >= 0.1:  # only worth a key entry when visible
         key.text(0.83, 0.70, "Hatched: no trip found", transform=key.transAxes, ha="left", va="top", fontsize=6.2, color=INK_2)
-    theme.credit(fig, theme.CREDIT_TRANSIT)
+    theme.credit(fig, theme.transit_credit(FEED_CREDIT.get(data["slug"], "GTFS")))
     theme.save(fig, out / f"{data['slug']}_travel_time.pdf")
 
 
